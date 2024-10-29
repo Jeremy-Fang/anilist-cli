@@ -7,6 +7,7 @@ from .media_sort import MediaSort
 from typing import TypedDict, List, NotRequired
 
 media_filter_map: dict = {
+    "media_id": "id",
     "season": "season",
     "season_year": "seasonYear",
     "media_type": "type",
@@ -27,8 +28,11 @@ media_filter_map: dict = {
     "sort_by": "sort",
 }
 
+type_map: dict = {"int": "Int", "bool": "Boolean", "str": "String"}
+
 
 class MediaFilter(TypedDict):
+    media_id: NotRequired[int]
     season: NotRequired[MediaSeason]
     season_year: NotRequired[int]
     media_type: NotRequired[MediaType]

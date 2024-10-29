@@ -12,9 +12,9 @@ query {
 """
 
 get_media = """
-query ({filters}) {{
+query ({args}) {{
   Page {{
-    media({media_filters}) {{
+    media({filters}) {{
       id
       title {{
         english
@@ -32,9 +32,96 @@ query ({filters}) {{
 }}
 """
 
-media_list_entry_query = """
+get_expanded_media_info = """
+query({args}) {{
+  Media({filters}) {{
+    id
+    idMal
+    nextAiringEpisode {{
+      airingAt
+      episode
+      timeUntilAiring
+    }}
+    title {{
+      english
+      romaji
+    }}
+    averageScore
+    chapters
+    countryOfOrigin
+    description
+    duration
+    endDate {{
+      day
+      month
+      year
+    }}
+    episodes
+    favourites
+    format
+    genres
+    meanScore
+    {list_entry}
+    popularity
+    rankings {{
+      allTime
+      context
+      format
+      rank
+      season
+      type
+      year
+    }}
+    relations {{
+      nodes {{
+        title {{
+          english
+          romaji
+        }}
+      }}
+    }}
+    recommendations {{
+      nodes {{
+        rating
+        mediaRecommendation {{
+          title {{
+            english
+            romaji
+          }}
+        }}
+      }}
+    }}
+    season
+    seasonYear
+    source
+    startDate {{
+      day
+      month
+      year
+    }}
+    status
+    studios {{
+      nodes {{
+        isAnimationStudio
+        name
+      }}
+    }}
+    synonyms
+    tags {{
+      name
+      isGeneralSpoiler
+      isMediaSpoiler
+    }}
+    type
+    volumes
+  }}
+}}
+"""
+
+media_list_entry_preview = """
 mediaListEntry {
-  status
   progress
+  status
+  score
 }
 """

@@ -25,25 +25,28 @@ async def start():
         # print(user)
 
         trending_anime = await anilist.get_trending_media(MediaType.ANIME)
-        trending_manga = await anilist.get_trending_media(MediaType.MANGA)
-        all_time_anime = await anilist.get_all_time_media(MediaType.ANIME)
-        all_time_manga = await anilist.get_all_time_media(MediaType.MANGA)
+        # trending_manga = await anilist.get_trending_media(MediaType.MANGA)
+        # all_time_anime = await anilist.get_all_time_media(MediaType.ANIME)
+        # all_time_manga = await anilist.get_all_time_media(MediaType.MANGA)
 
         for entry in trending_anime[:5]:
             print(entry)
 
-        print("----")
+        # print("----")
 
-        for entry in all_time_anime[:5]:
-            print(entry)
+        # for entry in all_time_anime[:5]:
+        #     print(entry)
 
-        print("----")
+        # print("----")
 
-        seasonal_anime = await anilist.get_seasonal_media(MediaType.ANIME)
+        # seasonal_anime = await anilist.get_seasonal_media(MediaType.ANIME)
 
-        for entry in seasonal_anime[:5]:
-            print(entry)
+        # for entry in seasonal_anime[:5]:
+        #     print(entry)
 
+        media_info = await anilist.get_media_info(1)
+
+        print(media_info)
     except Exception as e:
         print(e)
         logger.error(e)
