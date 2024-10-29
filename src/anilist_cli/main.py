@@ -1,7 +1,5 @@
 from .libs.anilist.models.filter import *
-
-from .libs.anilist.models.media_type import MediaType
-from .libs.anilist.models.media_list_status import MediaListStatus
+from .libs.anilist.models.enums import *
 
 from .libs.anilist.anilist import AnilistAPI
 

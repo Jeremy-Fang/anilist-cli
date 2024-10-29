@@ -4,11 +4,7 @@ import aiohttp
 from enum import Enum
 
 from .models.filter import *
-
-from .models.media_type import MediaType
-from .models.media_sort import MediaSort
-from .models.media_status import MediaStatus
-from .models.media_list_status import MediaListStatus
+from .models.enums import *
 
 from typing import List, Tuple
 

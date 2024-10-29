@@ -1,0 +1,138 @@
+from enum import Enum
+
+
+class MediaType(Enum):
+    ANIME = 1
+    MANGA = 2
+
+
+class MediaSeason(Enum):
+    WINTER = 1
+    SPRING = 2
+    SUMMER = 3
+    FALL = 4
+
+
+class MediaStatus(Enum):
+    FINISHED = 1
+    RELEASING = 2
+    NOT_YET_RELEASED = 3
+    CANCELLED = 4
+    HIATUS = 5
+
+
+class MediaFormat(Enum):
+    TV = 1
+    TV_SHORT = 2
+    MOVIE = 3
+    SPECIAL = 4
+    OVA = 5
+    ONA = 6
+    MUSIC = 7
+    MANGA = 8
+    NOVEL = 9
+    ONE_SHOT = 10
+
+
+class MediaGenre(Enum):
+    ACTION = 1
+    ADVENTURE = 2
+    COMEDY = 3
+    DRAMA = 4
+    ECCHI = 5
+    FANTASY = 6
+    HENTAI = 7
+    HORROR = 8
+    MAHOU_SHOUJO = 9
+    MECHA = 10
+    MUSIC = 11
+    MYSTERY = 12
+    PSYCHOLOGICAL = 13
+    ROMANCE = 14
+    SCI_FI = 15
+    SLICE_OF_LIFE = 16
+    SPORTS = 17
+    SUPERNATURAL = 18
+    THRILLER = 19
+
+
+class MediaListStatus(Enum):
+    CURRENT = 1
+    PLANNING = 2
+    COMPLETED = 3
+    DROPPED = 4
+    PAUSED = 5
+    REPEATING = 6
+
+
+class MediaListSort(Enum):
+    MEDIA_ID = 1
+    MEDIA_ID_DESC = 2
+    SCORE = 3
+    SCORE_DESC = 4
+    STATUS = 5
+    STATUS_DESC = 6
+    PROGRESS = 7
+    PROGRESS_DESC = 8
+    PROGRESS_VOLUMES = 9
+    PROGRESS_VOLUMES_DESC = 10
+    REPEAT = 11
+    REPEAT_DESC = 12
+    PRIORITY = 13
+    PRIORITY_DESC = 14
+    STARTED_ON = 15
+    STARTED_ON_DESC = 16
+    FINISHED_ON = 17
+    FINISHED_ON_DESC = 18
+    ADDED_TIME = 19
+    ADDED_TIME_DESC = 20
+    UPDATED_TIME = 21
+    UPDATED_TIME_DESC = 22
+    MEDIA_TITLE_ROMAJI = 23
+    MEDIA_TITLE_ROMAJI_DESC = 24
+    MEDIA_TITLE_ENGLISH = 25
+    MEDIA_TITLE_ENGLISH_DESC = 26
+    MEDIA_TITLE_NATIVE = 27
+    MEDIA_TITLE_NATIVE_DESC = 28
+    MEDIA_POPULARITY = 29
+    MEDIA_POPULARITY_DESC = 30
+
+
+class MediaSort(Enum):
+    ID = 1
+    ID_DESC = 2
+    TITLE_ROMAJI = 3
+    TITLE_ROMAJI_DESC = 4
+    TITLE_ENGLISH = 5
+    TITLE_ENGLISH_DESC = 6
+    TITLE_NATIVE = 7
+    TITLE_NATIVE_DESC = 8
+    TYPE = 9
+    TYPE_DESC = 10
+    FORMAT = 11
+    FORMAT_DESC = 12
+    START_DATE = 13
+    START_DATE_DESC = 14
+    END_DATE = 15
+    END_DATE_DESC = 16
+    SCORE = 17
+    SCORE_DESC = 18
+    POPULARITY = 19
+    POPULARITY_DESC = 20
+    TRENDING = 21
+    TRENDING_DESC = 22
+    EPISODES = 23
+    EPISODES_DESC = 24
+    DURATION = 25
+    DURATION_DESC = 26
+    STATUS = 27
+    STATUS_DESC = 28
+    CHAPTERS = 29
+    CHAPTERS_DESC = 30
+    VOLUMES = 31
+    VOLUMES_DESC = 32
+    UPDATED_AT = 33
+    UPDATED_AT_DESC = 34
+    SEARCH_MATCH = 35
+    FAVOURITES = 36
+    FAVOURITES_DESC = 37
