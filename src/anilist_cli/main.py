@@ -1,4 +1,7 @@
+from .libs.anilist.models.filter import *
+
 from .libs.anilist.models.media_type import MediaType
+from .libs.anilist.models.media_list_status import MediaListStatus
 
 from .libs.anilist.anilist import AnilistAPI
 
@@ -25,28 +28,48 @@ async def start():
         # print(user)
 
         trending_anime = await anilist.get_trending_media(MediaType.ANIME)
-        # trending_manga = await anilist.get_trending_media(MediaType.MANGA)
-        # all_time_anime = await anilist.get_all_time_media(MediaType.ANIME)
-        # all_time_manga = await anilist.get_all_time_media(MediaType.MANGA)
+        trending_manga = await anilist.get_trending_media(MediaType.MANGA)
+        all_time_anime = await anilist.get_all_time_media(MediaType.ANIME)
+        all_time_manga = await anilist.get_all_time_media(MediaType.MANGA)
 
         for entry in trending_anime[:5]:
             print(entry)
 
-        # print("----")
+        print("1----")
 
-        # for entry in all_time_anime[:5]:
-        #     print(entry)
+        for entry in all_time_anime[:5]:
+            print(entry)
 
-        # print("----")
+        print("2----")
 
-        # seasonal_anime = await anilist.get_seasonal_media(MediaType.ANIME)
+        seasonal_anime = await anilist.get_seasonal_media(MediaType.ANIME)
 
-        # for entry in seasonal_anime[:5]:
-        #     print(entry)
+        for entry in seasonal_anime[:5]:
+            print(entry)
 
         media_info = await anilist.get_media_info(1)
 
-        print(media_info)
+        print("media_info", media_info)
+
+        media_filter = MediaFilter()
+        media_filter["search_string"] = "re:zero"
+
+        results = await anilist.search(media_filter)
+
+        print("3------")
+
+        for result in results:
+            print(result)
+
+        print("4-----")
+
+        media_list = await anilist.get_media_list(
+            MediaType.ANIME, [MediaListStatus.CURRENT]
+        )
+
+        for i, entry in enumerate(media_list):
+            print(i, entry)
+
     except Exception as e:
         print(e)
         logger.error(e)

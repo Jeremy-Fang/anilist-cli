@@ -125,3 +125,44 @@ mediaListEntry {
   score
 }
 """
+
+get_media_list = """
+query ({args}) {{
+  MediaListCollection({filters}) {{
+    hasNextChunk
+    lists {{
+      entries {{
+        id
+        media {{
+          title {{
+            english
+            romaji
+          }}
+          chapters
+          episodes
+          isFavourite
+          status
+          type
+        }}
+        advancedScores
+        startedAt {{
+          day
+          month
+          year
+        }}
+        score
+        repeat
+        progress
+        notes
+        completedAt {{
+          day
+          month
+          year
+        }}
+      }}
+      name
+      status
+    }}
+  }}
+}}
+"""

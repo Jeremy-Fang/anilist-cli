@@ -3,10 +3,12 @@ import json
 import aiohttp
 from enum import Enum
 
-from .models.media_filter import MediaFilter, media_filter_map, type_map
+from .models.filter import *
+
 from .models.media_type import MediaType
 from .models.media_sort import MediaSort
 from .models.media_status import MediaStatus
+from .models.media_list_status import MediaListStatus
 
 from typing import List, Tuple
 
@@ -24,8 +26,10 @@ class AnilistAPI:
 
     Attributes:
     token: str anilist user access token
+    user: str anilist user name
     _session: aiohttp client session used to make API requests
-    _cache: session cache to store API request responses
+    headers: headers to be sent with API requests
+    cache: session cache to store API request responses
     _v: int denoting the number of anilist mutations made this session
     """
 
@@ -68,47 +72,47 @@ class AnilistAPI:
 
             return data["data"]["Viewer"]
 
-    def _build_query_variables(self, media_filters: MediaFilter) -> Tuple:
+    def _build_query_variables(self, filter: Filter) -> Tuple:
         """
-        Converts media filters into format usable for GraphQL queries
+        Converts a dictionary of variables into a format usable for GraphQL queries
 
-        @type media_filter: MediaFilter
-        @param media_filter: typed dict containing optional media filters
+        @type filter: Filter
+        @param filter: abstraction over filter TypedDicts and variable type maps
         @rtype: Tuple
         @returns: tuple containing custom strings to assign attributes in the graphQL query and media filter variables
         """
 
-        query_variables = {}
-        media_filter_variables = {}
+        graphql_map = filter.graphql_map
+        variables = filter.filter
 
-        for key in media_filters.keys():
-            if type(media_filters[key]) is list:
-                media_filter_variables[key] = []
-                query_variables[key] = "[" + type(media_filters[key][0]).__name__ + "]"
-                for entry in media_filters[key]:
-                    media_filter_variables[key].append(entry.name)
+        query_variables = {}
+        filter_variables = {}
+
+        for key in variables.keys():
+            if type(variables[key]) is list:
+                filter_variables[key] = []
+                query_variables[key] = "[" + type(variables[key][0]).__name__ + "]"
+                for entry in variables[key]:
+                    filter_variables[key].append(entry.name)
             else:
-                if issubclass(type(media_filters[key]), Enum):
-                    query_variables[key] = type(media_filters[key]).__name__
-                    media_filter_variables[key] = media_filters[key].name
+                if issubclass(type(variables[key]), Enum):
+                    query_variables[key] = type(variables[key]).__name__
+                    filter_variables[key] = variables[key].name
                 else:
-                    query_variables[key] = type_map[type(media_filters[key]).__name__]
-                    media_filter_variables[key] = media_filters[key]
+                    query_variables[key] = type_map[type(variables[key]).__name__]
+                    filter_variables[key] = variables[key]
 
         query_variables_assignment = ", ".join(
             ["$" + key + " : " + query_variables[key] for key in query_variables.keys()]
         )
-        media_filters_assignment = ", ".join(
-            [
-                media_filter_map[key] + " : " + "$" + key
-                for key in query_variables.keys()
-            ]
+        filters_assignment = ", ".join(
+            [graphql_map[key] + " : " + "$" + key for key in query_variables.keys()]
         )
 
         return (
             query_variables_assignment,
-            media_filters_assignment,
-            media_filter_variables.copy(),
+            filters_assignment,
+            filter_variables.copy(),
         )
 
     def __check_cache(self, query: str, variables: dict) -> List[dict] | None:
@@ -187,7 +191,9 @@ class AnilistAPI:
         media_filters["media_type"] = media_type
         media_filters["sort_by"] = [MediaSort.TRENDING_DESC]
 
-        (args, filters, variables) = self._build_query_variables(media_filters)
+        filter = Filter(graphql_map=media_filter_map, filter=media_filters)
+
+        (args, filters, variables) = self._build_query_variables(filter)
 
         query = get_media.format(
             args=args,
@@ -214,7 +220,19 @@ class AnilistAPI:
         media_filters["media_type"] = media_type
         media_filters["sort_by"] = [MediaSort.POPULARITY_DESC]
 
-        return await self.get_data(media_filters)
+        filter = Filter(graphql_map=media_filter_map, filter=media_filters)
+
+        (args, filters, variables) = self._build_query_variables(filter)
+
+        query = get_media.format(
+            args=args,
+            filters=filters,
+            list_entry=media_list_entry_preview if self.user else "",
+        )
+
+        data = await self.get_data(query, variables)
+
+        return data["data"]["Page"]["media"]
 
     @validate_call
     async def get_seasonal_media(self, media_type: MediaType) -> List[dict]:
@@ -226,12 +244,25 @@ class AnilistAPI:
         @rtype: List[dict]
         @returns: dictionary containing top 50 releasing media
         """
+
         media_filters = MediaFilter()
         media_filters["media_type"] = media_type
         media_filters["sort_by"] = [MediaSort.TRENDING_DESC]
-        media_filters["status"] = MediaStatus.RELEASING
+        media_filters["media_status"] = MediaStatus.RELEASING
 
-        return await self.get_data(media_filters)
+        filter = Filter(graphql_map=media_filter_map, filter=media_filters)
+
+        (args, filters, variables) = self._build_query_variables(filter)
+
+        query = get_media.format(
+            args=args,
+            filters=filters,
+            list_entry=media_list_entry_preview if self.user else "",
+        )
+
+        data = await self.get_data(query, variables)
+
+        return data["data"]["Page"]["media"]
 
     @validate_call
     async def get_upcoming_media(self, media_type: MediaType) -> List[dict]:
@@ -248,8 +279,21 @@ class AnilistAPI:
         media_filters["sort_by"] = [MediaSort.POPULARITY_DESC]
         media_filters["status"] = MediaStatus.NOT_YET_RELEASED
 
-        return await self.get_data(media_filters)
+        filter = Filter(graphql_map=media_filter_map, filter=media_filters)
 
+        (args, filters, variables) = self._build_query_variables(filter)
+
+        query = get_media.format(
+            args=args,
+            filters=filters,
+            list_entry=media_list_entry_preview if self.user else "",
+        )
+
+        data = await self.get_data(query, variables)
+
+        return data["data"]["Page"]["media"]
+
+    @validate_call
     async def get_media_info(self, id: int) -> dict | None:
         """
         Function that gets detailed information on a media entry matching
@@ -264,7 +308,9 @@ class AnilistAPI:
         media_filters = MediaFilter()
         media_filters["media_id"] = id
 
-        (args, filters, variables) = self._build_query_variables(media_filters)
+        filter = Filter(graphql_map=media_filter_map, filter=media_filters)
+
+        (args, filters, variables) = self._build_query_variables(filter)
 
         query = get_expanded_media_info.format(
             args=args,
@@ -273,7 +319,42 @@ class AnilistAPI:
         )
 
         data = await self.get_data(query, variables)
+
         return data["data"]["Media"]
+
+    @validate_call
+    async def search(self, filters: MediaFilter) -> List[dict]:
+        filter = Filter(graphql_map=media_filter_map, filter=filters)
+
+        (args, f, variables) = self._build_query_variables(filter)
+
+        query = get_media.format(
+            args=args,
+            filters=f,
+            list_entry=media_list_entry_preview if self.user else "",
+        )
+
+        data = await self.get_data(query, variables)
+
+        return data["data"]["Page"]["media"]
+
+    async def get_media_list(
+        self, media_type: MediaType, media_list_status: List[MediaListStatus]
+    ) -> List[dict]:
+        list_filters = MediaListFilter()
+        list_filters["user_name"] = "JeremyFang022"
+        list_filters["media_type"] = media_type
+        list_filters["status_in"] = media_list_status
+
+        filter = Filter(graphql_map=media_list_filter_map, filter=list_filters)
+
+        (args, filters, variables) = self._build_query_variables(filter)
+
+        query = get_media_list.format(args=args, filters=filters)
+
+        data = await self.get_data(query, variables)
+
+        return data["data"]["MediaListCollection"]["lists"]
 
     async def close(self) -> None:
         """

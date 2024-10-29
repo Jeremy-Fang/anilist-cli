@@ -2,9 +2,17 @@ from .media_season import MediaSeason
 from .media_type import MediaType
 from .media_format import MediaFormat
 from .media_status import MediaStatus
+from .media_list_status import MediaListStatus
 from .media_sort import MediaSort
 
 from typing import TypedDict, List, NotRequired
+
+media_list_filter_map: dict = {
+    "user_name": "userName",
+    "media_type": "type",
+    "status_in": "status_in",
+    "sort_by": "sort",
+}
 
 media_filter_map: dict = {
     "media_id": "id",
@@ -31,6 +39,13 @@ media_filter_map: dict = {
 type_map: dict = {"int": "Int", "bool": "Boolean", "str": "String"}
 
 
+class MediaListFilter(TypedDict):
+    user_name: str
+    media_type: MediaType
+    status_in: NotRequired[List[MediaListStatus]]
+    sort_by: NotRequired[List[MediaSort]]
+
+
 class MediaFilter(TypedDict):
     media_id: NotRequired[int]
     season: NotRequired[MediaSeason]
@@ -51,3 +66,14 @@ class MediaFilter(TypedDict):
     tag_in: NotRequired[List[str]]
     tag_not_in: NotRequired[List[str]]
     sort_by: NotRequired[List[MediaSort]]
+
+
+class Filter:
+    graphql_map: dict
+    filter: MediaFilter | MediaListFilter
+
+    def __init__(
+        self, graphql_map: dict, filter: MediaFilter | MediaListFilter
+    ) -> None:
+        self.graphql_map = graphql_map
+        self.filter = filter
