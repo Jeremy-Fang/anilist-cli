@@ -22,6 +22,7 @@ query ({args}) {{
       }}
       status
       popularity
+      averageScore
       chapters
       episodes
       format

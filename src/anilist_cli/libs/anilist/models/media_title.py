@@ -1,6 +1,7 @@
-from pydantic import BaseModel
+class MediaTitle:
+    english: str | None
+    romaji: str | None
 
-
-class MediaTitle(BaseModel):
-    english: str | None = None
-    romaji: str | None = None
+    def __init__(self, english=None, romaji=None) -> None:
+        self.english = english
+        self.romaji = romaji

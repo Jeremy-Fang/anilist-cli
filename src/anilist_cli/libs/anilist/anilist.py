@@ -150,10 +150,12 @@ class AnilistAPI:
     @validate_call
     async def get_data(self, query: str, variables: dict) -> List[dict]:
         """
-        Abstraction around media search queries, returning the first 50 entires
+        Abstraction around get queries, returning the first 50 entires
 
-        @type media_filters: MediaFilter
-        @param media_filters: filters for graphQL query
+        @type query: str
+        @type variables: dict
+        @param query: graphQL query request
+        @param variables: key-value variables for the query
         @rtype: List[dict]
         @returns: dictionary containing top 50 results matching query and variables
         """
@@ -173,6 +175,31 @@ class AnilistAPI:
             return data
 
     @validate_call
+    async def search(self, filters: MediaFilter) -> List[dict]:
+        """
+        Function that queries anilist API for media filtered by filters
+
+        @type filters: MediaFilter
+        @param filters: TypedDict containing media filter key-value pairs
+        @rtype: List[dict]
+        @returns: List containing up to 50 dictionaries representing media
+        """
+
+        filter = Filter(graphql_map=media_filter_map, filter=filters)
+
+        (args, f, variables) = self._build_query_variables(filter)
+
+        query = get_media.format(
+            args=args,
+            filters=f,
+            list_entry=media_list_entry_preview if self.user else "",
+        )
+
+        data = await self.get_data(query, variables)
+
+        return data["data"]["Page"]["media"]
+
+    @validate_call
     async def get_trending_media(self, media_type: MediaType) -> List[dict]:
         """
         Gets top 50 trending media
@@ -180,26 +207,14 @@ class AnilistAPI:
         @type media_type: MediaType
         @param media_type: anime or manga
         @rtype: List[dict]
-        @returns: dictionary containing top 50 trending media
+        @returns: List containing top 50 trending media
         """
 
         media_filters = MediaFilter()
         media_filters["media_type"] = media_type
         media_filters["sort_by"] = [MediaSort.TRENDING_DESC]
 
-        filter = Filter(graphql_map=media_filter_map, filter=media_filters)
-
-        (args, filters, variables) = self._build_query_variables(filter)
-
-        query = get_media.format(
-            args=args,
-            filters=filters,
-            list_entry=media_list_entry_preview if self.user else "",
-        )
-
-        data = await self.get_data(query, variables)
-
-        return data["data"]["Page"]["media"]
+        return await self.search(media_filters)
 
     @validate_call
     async def get_all_time_media(self, media_type: MediaType) -> List[dict]:
@@ -209,26 +224,14 @@ class AnilistAPI:
         @type media_type: MediaType
         @param media_type: anime or manga
         @rtype: List[dict]
-        @returns: dictionary containing top 50 all time media
+        @returns: List containing top 50 all time media
         """
 
         media_filters = MediaFilter()
         media_filters["media_type"] = media_type
         media_filters["sort_by"] = [MediaSort.POPULARITY_DESC]
 
-        filter = Filter(graphql_map=media_filter_map, filter=media_filters)
-
-        (args, filters, variables) = self._build_query_variables(filter)
-
-        query = get_media.format(
-            args=args,
-            filters=filters,
-            list_entry=media_list_entry_preview if self.user else "",
-        )
-
-        data = await self.get_data(query, variables)
-
-        return data["data"]["Page"]["media"]
+        return await self.search(media_filters)
 
     @validate_call
     async def get_seasonal_media(self, media_type: MediaType) -> List[dict]:
@@ -238,7 +241,7 @@ class AnilistAPI:
         @type media_type: MediaType
         @param media_type: anime or manga
         @rtype: List[dict]
-        @returns: dictionary containing top 50 releasing media
+        @returns: List containing top 50 releasing media
         """
 
         media_filters = MediaFilter()
@@ -246,19 +249,7 @@ class AnilistAPI:
         media_filters["sort_by"] = [MediaSort.TRENDING_DESC]
         media_filters["media_status"] = MediaStatus.RELEASING
 
-        filter = Filter(graphql_map=media_filter_map, filter=media_filters)
-
-        (args, filters, variables) = self._build_query_variables(filter)
-
-        query = get_media.format(
-            args=args,
-            filters=filters,
-            list_entry=media_list_entry_preview if self.user else "",
-        )
-
-        data = await self.get_data(query, variables)
-
-        return data["data"]["Page"]["media"]
+        return await self.search(media_filters)
 
     @validate_call
     async def get_upcoming_media(self, media_type: MediaType) -> List[dict]:
@@ -268,26 +259,14 @@ class AnilistAPI:
         @type media_type: MediaType
         @param media_type: anime or manga
         @rtype: List[dict]
-        @returns: dictionary containing top 50 upcoming media
+        @returns: List containing top 50 upcoming media
         """
         media_filters = MediaFilter()
         media_filters["media_type"] = media_type
         media_filters["sort_by"] = [MediaSort.POPULARITY_DESC]
         media_filters["status"] = MediaStatus.NOT_YET_RELEASED
 
-        filter = Filter(graphql_map=media_filter_map, filter=media_filters)
-
-        (args, filters, variables) = self._build_query_variables(filter)
-
-        query = get_media.format(
-            args=args,
-            filters=filters,
-            list_entry=media_list_entry_preview if self.user else "",
-        )
-
-        data = await self.get_data(query, variables)
-
-        return data["data"]["Page"]["media"]
+        return await self.search(media_filters)
 
     @validate_call
     async def get_media_info(self, id: int) -> dict | None:
@@ -319,26 +298,27 @@ class AnilistAPI:
         return data["data"]["Media"]
 
     @validate_call
-    async def search(self, filters: MediaFilter) -> List[dict]:
-        filter = Filter(graphql_map=media_filter_map, filter=filters)
-
-        (args, f, variables) = self._build_query_variables(filter)
-
-        query = get_media.format(
-            args=args,
-            filters=f,
-            list_entry=media_list_entry_preview if self.user else "",
-        )
-
-        data = await self.get_data(query, variables)
-
-        return data["data"]["Page"]["media"]
-
     async def get_media_list(
-        self, media_type: MediaType, media_list_status: List[MediaListStatus]
+        self,
+        user_name: str,
+        media_type: MediaType,
+        media_list_status: List[MediaListStatus],
     ) -> List[dict]:
+        """
+        Function that requests media lists based on function parameters
+
+        @type user_name: str
+        @type media_type: MediaType
+        @type media_list_status: List[MediaListStatus]
+        @param user_name: anilist username
+        @param media_type: anime or manga
+        @param media_list_status: list of media statuses
+        @rtype: List[dict]
+        @returns: list of dictionaries representing media lists
+        """
+
         list_filters = MediaListFilter()
-        list_filters["user_name"] = "JeremyFang022"
+        list_filters["user_name"] = user_name
         list_filters["media_type"] = media_type
         list_filters["status_in"] = media_list_status
 
@@ -351,6 +331,10 @@ class AnilistAPI:
         data = await self.get_data(query, variables)
 
         return data["data"]["MediaListCollection"]["lists"]
+
+    async def create_media_list_entry(media_id: int, changes: dict = {}) -> bool:
+
+        return True
 
     async def close(self) -> None:
         """

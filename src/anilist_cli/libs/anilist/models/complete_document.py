@@ -1,20 +1,19 @@
-from .media_genre import MediaGenre
-from .list_entry import ListEntry
+from .enums import *
+
+from .list_entry_interface import ListEntry
+from .media_interface import Media
 
 from abc import abstractmethod
 
 from typing import List
-from pydantic import BaseModel
 
 
-class CompleteDocument(ListEntry, BaseModel):
+class CompleteDocument(ListEntry, Media):
     genres: List[MediaGenre]
     description: str
 
     @abstractmethod
-    def add_changes(self) -> bool:
-        pass
+    def add_changes(self) -> bool: ...
 
     @abstractmethod
-    def update_media_entry(self) -> bool:
-        pass
+    def update_media_entry(self) -> bool: ...
