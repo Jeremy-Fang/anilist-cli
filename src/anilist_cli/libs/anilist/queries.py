@@ -27,7 +27,11 @@ query ({}) {{
       episodes
       format
       type
-      {}
+      mediaListEntry {{
+        progress
+        status
+        score
+      }}
     }}
   }}
 }}
@@ -37,19 +41,12 @@ get_expanded_media_info = """
 query({}) {{
   Media({}) {{
     id
-    idMal
-    nextAiringEpisode {{
-      airingAt
-      episode
-      timeUntilAiring
-    }}
     title {{
       english
       romaji
     }}
     averageScore
     chapters
-    countryOfOrigin
     description
     duration
     endDate {{
@@ -61,37 +58,12 @@ query({}) {{
     favourites
     format
     genres
-    meanScore
-    {}
+    mediaListEntry {{
+      progress
+      status
+      score
+    }}
     popularity
-    rankings {{
-      allTime
-      context
-      format
-      rank
-      season
-      type
-      year
-    }}
-    relations {{
-      nodes {{
-        title {{
-          english
-          romaji
-        }}
-      }}
-    }}
-    recommendations {{
-      nodes {{
-        rating
-        mediaRecommendation {{
-          title {{
-            english
-            romaji
-          }}
-        }}
-      }}
-    }}
     season
     seasonYear
     source
@@ -101,23 +73,97 @@ query({}) {{
       year
     }}
     status
-    studios {{
-      nodes {{
-        isAnimationStudio
-        name
-      }}
-    }}
-    synonyms
-    tags {{
-      name
-      isGeneralSpoiler
-      isMediaSpoiler
-    }}
     type
     volumes
   }}
 }}
 """
+
+# get_expanded_media_info = """
+# query({}) {{
+#   Media({}) {{
+#     id
+#     idMal
+#     nextAiringEpisode {{
+#       airingAt
+#       episode
+#       timeUntilAiring
+#     }}
+#     title {{
+#       english
+#       romaji
+#     }}
+#     averageScore
+#     chapters
+#     countryOfOrigin
+#     description
+#     duration
+#     endDate {{
+#       day
+#       month
+#       year
+#     }}
+#     episodes
+#     favourites
+#     format
+#     genres
+#     meanScore
+#     {}
+#     popularity
+#     rankings {{
+#       allTime
+#       context
+#       format
+#       rank
+#       season
+#       type
+#       year
+#     }}
+#     relations {{
+#       nodes {{
+#         title {{
+#           english
+#           romaji
+#         }}
+#       }}
+#     }}
+#     recommendations {{
+#       nodes {{
+#         rating
+#         mediaRecommendation {{
+#           title {{
+#             english
+#             romaji
+#           }}
+#         }}
+#       }}
+#     }}
+#     season
+#     seasonYear
+#     source
+#     startDate {{
+#       day
+#       month
+#       year
+#     }}
+#     status
+#     studios {{
+#       nodes {{
+#         isAnimationStudio
+#         name
+#       }}
+#     }}
+#     synonyms
+#     tags {{
+#       name
+#       isGeneralSpoiler
+#       isMediaSpoiler
+#     }}
+#     type
+#     volumes
+#   }}
+# }}
+# """
 
 media_list_entry_preview = """
 mediaListEntry {

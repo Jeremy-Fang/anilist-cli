@@ -5,10 +5,16 @@ import json
 from enum import Enum
 
 from .models.filter import *
-
 from .models.enums import *
+from .models.media_title import MediaTitle
 
-from typing import List, Tuple
+from .models.media_preview import MediaPreview
+from .models.anime_preview import AnimePreview
+from .models.manga_preview import MangaPreview
+
+from typing import List, Tuple, Union
+
+from datetime import date
 
 from .queries import *
 
@@ -33,7 +39,10 @@ class GraphQLAdapter:
 
     @validate_call
     def _filter_to_grapql(
-        self, base_query: str, format_args: int, filter: Filter
+        self,
+        base_query: str,
+        format_args: int,
+        filter: Union[MediaFilter, MediaListFilter],
     ) -> Tuple:
         """
         Adapter function that takes a base graphql string with variables,
@@ -41,14 +50,15 @@ class GraphQLAdapter:
 
         @type base_query: str
         @type format_args: int
-        @type filter: Filter
+        @type filter: MediaFilter | MediaListFilter
         @param base_query: graphQL base string
-        @param filter: abstraction over filter TypedDicts
+        @param format_args: number of args to replace in base query
+        @param filter: a type of filter for media
         @rtype: Tuple
         @returns: tuple containing a resulting graphQL string and a variable map
         """
 
-        variables = filter.filter.model_dump(by_alias=True)
+        variables = filter.model_dump(by_alias=True)
         not_none_variables = {key: value for (key, value) in variables.items() if value}
 
         variable_types = {}
@@ -95,15 +105,12 @@ class GraphQLAdapter:
 
         args = [query_variables_string, filters_string]
 
-        if format_args == 3:
-            args.append(self.api.user if self.api.user else "")
-
         query = base_query.format(*args)
 
         return (query, not_none_variables)
 
     @validate_call
-    async def search(self, filters: MediaFilter) -> List[dict]:
+    async def search(self, filters: MediaFilter) -> List[MediaPreview]:
         """
         Function that queries anilist API for media filtered by filters
 
@@ -113,19 +120,49 @@ class GraphQLAdapter:
         @returns: List containing up to 50 dictionaries representing media
         """
 
-        filter = Filter(graphql_map=media_filter_map, filter=filters)
+        data = await self.api.get_data(*self._filter_to_grapql(get_media, 2, filters))
 
-        data = await self.api.get_data(*self._filter_to_grapql(get_media, 3, filter))
         data = data["data"]["Page"]["media"]
+
+        # cleans data
+        for entry in data:
+            for key in list(entry.keys()):
+                # removes fields with no value
+                if entry[key] == None:
+                    del entry[key]
+            entry["api"] = self
+            entry["title"] = MediaTitle(**entry["title"])
+            entry["status"] = MediaStatus[entry["status"]]
+            entry["format"] = MediaFormat[entry["format"]]
+            entry["type"] = MediaType[entry["type"]]
+
+            if "mediaListEntry" in entry:
+                media_list_entry = entry["mediaListEntry"]
+                # removes fields with no value
+                for key in list(media_list_entry.keys()):
+                    if media_list_entry[key] == None:
+                        del media_list_entry[key]
+
+                entry["list_entry_status"] = MediaListStatus[media_list_entry["status"]]
+                entry["progress"] = media_list_entry["progress"]
+                entry["score"] = (
+                    media_list_entry["score"]
+                    if media_list_entry["score"] != 0
+                    else None
+                )
+
         results = []
 
-        # if filters[]
-        # for row in data:
-        #     print()
-        return data
+        for entry in data:
+            if entry["type"] == MediaType.ANIME:
+                results.append(AnimePreview(**entry))
+            else:
+                results.append(MangaPreview(**entry))
+
+        return results
 
     @validate_call
-    async def get_trending_media(self, media_type: MediaType) -> List[dict]:
+    async def get_trending_media(self, media_type: MediaType) -> List[MediaPreview]:
         """
         Gets top 50 trending media
 
@@ -142,7 +179,7 @@ class GraphQLAdapter:
         return await self.search(media_filters)
 
     @validate_call
-    async def get_all_time_media(self, media_type: MediaType) -> List[dict]:
+    async def get_all_time_media(self, media_type: MediaType) -> List[MediaPreview]:
         """
         Gets top 50 all time media
 
@@ -159,7 +196,7 @@ class GraphQLAdapter:
         return await self.search(media_filters)
 
     @validate_call
-    async def get_seasonal_media(self, media_type: MediaType) -> List[dict]:
+    async def get_seasonal_media(self, media_type: MediaType) -> List[MediaPreview]:
         """
         Gets top 50 currently releasing media
 
@@ -177,7 +214,7 @@ class GraphQLAdapter:
         return await self.search(media_filters)
 
     @validate_call
-    async def get_upcoming_media(self, media_type: MediaType) -> List[dict]:
+    async def get_upcoming_media(self, media_type: MediaType) -> List[MediaPreview]:
         """
         Gets top 50 not yet released media
 
@@ -208,13 +245,53 @@ class GraphQLAdapter:
         media_filters = MediaFilter()
         media_filters["media_id"] = id
 
-        filter = Filter(graphql_map=media_filter_map, filter=media_filters)
-
         data = await self.api.get_data(
-            *self._filter_to_grapql(get_expanded_media_info, 3, filter)
+            *self._filter_to_grapql(get_expanded_media_info, 2, media_filters)
         )
 
-        return data["data"]["Media"]
+        data = data["data"]["Media"]
+
+        # cleans data
+        for key in list(data.keys()):
+            # removes fields with no value
+            if data[key] == None:
+                del data[key]
+
+        data["api"] = self
+        data["title"] = MediaTitle(**data["title"])
+        data["status"] = MediaStatus[data["status"]]
+        data["format"] = MediaFormat[data["format"]]
+        data["type"] = MediaType[data["type"]]
+        data["source"] = MediaSource[data["source"]]
+        data["season"] = MediaSeason[data["season"]]
+
+        if "startDate" in data:
+            data["startDate"] = date(**data["startDate"])
+
+        if "endDate" in data:
+            data["endDate"] = date(**data["endDate"])
+
+        for i, genre in enumerate(data["genres"]):
+            data["genres"][i] = MediaGenre[
+                "_".join(genre.upper().replace("-", " ").split())
+            ]
+
+        print(":)))))", data)
+
+        if "mediaListEntry" in data:
+            media_list_entry = data["mediaListEntry"]
+            # removes fields with no value
+            for key in list(media_list_entry.keys()):
+                if media_list_entry[key] == None:
+                    del media_list_entry[key]
+
+            data["list_entry_status"] = MediaListStatus[media_list_entry["status"]]
+            data["progress"] = media_list_entry["progress"]
+            data["score"] = (
+                media_list_entry["score"] if media_list_entry["score"] != 0 else None
+            )
+
+        return data
 
     @validate_call
     async def get_media_list(
@@ -237,14 +314,13 @@ class GraphQLAdapter:
         """
 
         list_filters = MediaListFilter()
+
         list_filters["user_name"] = user_name
         list_filters["media_type"] = media_type
         list_filters["status_in"] = media_list_status
 
-        filter = Filter(graphql_map=media_list_filter_map, filter=list_filters)
-
         data = await self.api.get_data(
-            *self._filter_to_grapql(get_media_list, 2, filter)
+            *self._filter_to_grapql(get_media_list, 2, list_filters)
         )
 
         return data["data"]["MediaListCollection"]["lists"]

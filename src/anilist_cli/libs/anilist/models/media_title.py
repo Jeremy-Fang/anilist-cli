@@ -1,7 +1,8 @@
-class MediaTitle:
-    english: str | None
-    romaji: str | None
+from pydantic import BaseModel, Field
 
-    def __init__(self, english=None, romaji=None) -> None:
-        self.english = english
-        self.romaji = romaji
+from typing import Optional
+
+
+class MediaTitle(BaseModel):
+    english: Optional[str] = Field(default=None)
+    romaji: Optional[str] = Field(default=None)

@@ -1,44 +1,21 @@
 from .enums import *
 
-from typing import TypedDict, List, Optional, Union, Optional
+from typing import List, Optional, Optional
 
 from pydantic import BaseModel, Field
 
-media_list_filter_map: dict = {
-    "user_name": "userName",
-    "media_type": "type",
-    "status_in": "status_in",
-    "sort_by": "sort",
-}
-
-media_filter_map: dict = {
-    "media_id": "id",
-    "season": "season",
-    "season_year": "seasonYear",
-    "media_type": "type",
-    "media_format": "format",
-    "media_status": "status",
-    "episodes": "episodes",
-    "duration": "duration",
-    "chapters": "chapters",
-    "volumes": "volumes",
-    "on_list": "onList",
-    "average_score": "averageScore",
-    "popularity": "popularity",
-    "search_string": "search",
-    "genre_in": "genre_in",
-    "genre_not_in": "genre_not_in",
-    "tag_in": "tag_in",
-    "tag_not_in": "tag_not_in",
-    "sort_by": "sort",
-}
-
 
 class MediaListFilter(BaseModel):
-    user_name: str = Field(alias="userName")
-    media_type: MediaType = Field(alias="type")
+    user_name: Optional[str] = Field(default=None, alias="userName")
+    media_type: Optional[MediaType] = Field(default=None, alias="type")
     status_in: Optional[List[MediaListStatus]] = Field(default=None)
     sort_by: Optional[List[MediaSort]] = Field(default=None)
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+    def __setitem__(self, key, value):
+        return setattr(self, key, value)
 
 
 class MediaFilter(BaseModel):
@@ -67,8 +44,3 @@ class MediaFilter(BaseModel):
 
     def __setitem__(self, key, value):
         return setattr(self, key, value)
-
-
-class Filter(BaseModel):
-    graphql_map: dict
-    filter: Union[MediaFilter, MediaListFilter]

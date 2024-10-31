@@ -11,8 +11,6 @@ from pydantic import validate_call
 
 
 class Manga(CompleteDocument):
-    chapters: int
-
     def __init__(
         self,
         api: AnilistAPI,

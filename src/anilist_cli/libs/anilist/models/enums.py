@@ -34,6 +34,24 @@ class MediaFormat(Enum):
     ONE_SHOT = 10
 
 
+class MediaSource(Enum):
+    ORIGINAL = 1
+    MANGA = 2
+    LIGHT_NOVEL = 3
+    VISUAL_NOVEL = 4
+    VIDEO_GAME = 5
+    OTHER = 6
+    NOVEL = 7
+    DOUJINSHI = 8
+    ANIME = 9
+    WEB_NOVEL = 10
+    LIVE_ACTION = 11
+    GAME = 12
+    COMIC = 13
+    MULTIMEDIA_PROJECT = 14
+    PICTURE_BOOK = 15
+
+
 class MediaGenre(Enum):
     ACTION = 1
     ADVENTURE = 2
