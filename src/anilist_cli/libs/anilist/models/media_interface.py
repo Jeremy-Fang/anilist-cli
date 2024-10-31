@@ -11,4 +11,6 @@ class Media(ABC):
     popularity: int
     average_score: float
     format: MediaFormat
+    episodes: int | None
+    chapters: int | None
     type: MediaType

@@ -24,21 +24,22 @@ logging.basicConfig(
 
 
 async def start():
-    anilist = AnilistAPI()
+    api = AnilistAPI()
 
     try:
         # user = await anilist.login(ACCESS_TOKEN)
 
         # print(user)
 
-        adapter = GraphQLAdapter(anilist)
+        anilist = GraphQLAdapter(api)
 
-        # trending_anime = await adapter.get_trending_media(MediaType.ANIME)
+        temp = MediaListFilter(userName="hello", type=MediaType.ANIME)
 
-        trending_anime = await adapter.get_trending_media(MediaType.ANIME)
-        trending_manga = await adapter.get_trending_media(MediaType.MANGA)
-        all_time_anime = await adapter.get_all_time_media(MediaType.ANIME)
-        all_time_manga = await adapter.get_all_time_media(MediaType.MANGA)
+        print(temp.model_dump(by_alias=True))
+        trending_anime = await anilist.get_trending_media(MediaType.ANIME)
+        # trending_manga = await anilist.get_trending_media(MediaType.MANGA)
+        # all_time_anime = await anilist.get_all_time_media(MediaType.ANIME)
+        # all_time_manga = await anilist.get_all_time_media(MediaType.MANGA)
 
         for entry in trending_anime[:5]:
             print(entry)
@@ -62,44 +63,44 @@ async def start():
 
         print("1----")
 
-        for entry in all_time_anime[:5]:
-            print(entry)
+        # for entry in all_time_anime[:5]:
+        #     print(entry)
 
-        print("2----")
+        # print("2----")
 
-        seasonal_anime = await adapter.get_seasonal_media(MediaType.ANIME)
+        # seasonal_anime = await anilist.get_seasonal_media(MediaType.ANIME)
 
-        for entry in seasonal_anime[:5]:
-            print(entry)
+        # for entry in seasonal_anime[:5]:
+        #     print(entry)
 
-        media_info = await adapter.get_media_info(1)
+        # media_info = await anilist.get_media_info(1)
 
-        print("media_info", media_info)
+        # print("media_info", media_info)
 
-        media_filter = MediaFilter()
-        media_filter["search_string"] = "re:zero"
+        # media_filter = MediaFilter()
+        # media_filter["search_string"] = "re:zero"
 
-        results = await adapter.search(media_filter)
+        # results = await anilist.search(media_filter)
 
-        print("3------")
+        # print("3------")
 
-        for result in results:
-            print(result)
+        # for result in results:
+        #     print(result)
 
-        print("4-----")
+        # print("4-----")
 
-        media_list = await adapter.get_media_list(
-            "Chikaraa", MediaType.ANIME, [MediaListStatus.CURRENT]
-        )
+        # media_list = await anilist.get_media_list(
+        #     "Chikaraa", MediaType.ANIME, [MediaListStatus.CURRENT]
+        # )
 
-        for i, entry in enumerate(media_list):
-            print(i, entry)
+        # for i, entry in enumerate(media_list):
+        #     print(i, entry)
 
     except Exception as e:
         print(e)
         logger.error(e)
 
-    await anilist.close()
+    await api.close()
 
 
 def main():

@@ -5,6 +5,7 @@ import json
 from enum import Enum
 
 from .models.filter import *
+
 from .models.enums import *
 
 from typing import List, Tuple
@@ -30,6 +31,7 @@ class GraphQLAdapter:
         """
         self.api = api
 
+    @validate_call
     def _filter_to_grapql(
         self, base_query: str, format_args: int, filter: Filter
     ) -> Tuple:
@@ -46,31 +48,49 @@ class GraphQLAdapter:
         @returns: tuple containing a resulting graphQL string and a variable map
         """
 
-        graphql_map = filter.graphql_map
-        variables = filter.filter
+        variables = filter.filter.model_dump(by_alias=True)
+        not_none_variables = {key: value for (key, value) in variables.items() if value}
 
-        query_variables = {}
-        filter_variables = {}
+        variable_types = {}
 
-        for key in variables.keys():
-            if type(variables[key]) is list:
-                filter_variables[key] = []
-                query_variables[key] = "[" + type(variables[key][0]).__name__ + "]"
-                for entry in variables[key]:
-                    filter_variables[key].append(entry.name)
-            else:
-                if issubclass(type(variables[key]), Enum):
-                    query_variables[key] = type(variables[key]).__name__
-                    filter_variables[key] = variables[key].name
+        # creates map for type of each filter
+        for key in not_none_variables.keys():
+            if type(not_none_variables[key]) is list:
+                if issubclass(type(not_none_variables[key][0]), Enum):
+                    variable_types[key] = (
+                        "[" + type(not_none_variables[key][0]).__name__ + "]"
+                    )
                 else:
-                    query_variables[key] = basic_type_map[type(variables[key]).__name__]
-                    filter_variables[key] = variables[key]
+                    variable_types[key] = (
+                        "["
+                        + basic_type_map[type(not_none_variables[key][0]).__name__]
+                        + "]"
+                    )
+            else:
+                if issubclass(type(not_none_variables[key]), Enum):
+                    variable_types[key] = type(not_none_variables[key]).__name__
+                else:
+                    variable_types[key] = basic_type_map[
+                        type(not_none_variables[key]).__name__
+                    ]
+
+        # maps enum values to their names for filters
+        for key in not_none_variables.keys():
+            if type(not_none_variables[key]) is list:
+                if issubclass(type(not_none_variables[key][0]), Enum):
+                    val = []
+                    for entry in not_none_variables[key]:
+                        val.append(entry.name)
+                    not_none_variables[key] = val.copy()
+            else:
+                if issubclass(type(not_none_variables[key]), Enum):
+                    not_none_variables[key] = not_none_variables[key].name
 
         query_variables_string = ", ".join(
-            ["$" + key + " : " + query_variables[key] for key in query_variables.keys()]
+            ["$" + key + " : " + variable_types[key] for key in variable_types.keys()]
         )
         filters_string = ", ".join(
-            [graphql_map[key] + " : " + "$" + key for key in query_variables.keys()]
+            [key + " : " + "$" + key for key in not_none_variables.keys()]
         )
 
         args = [query_variables_string, filters_string]
@@ -80,7 +100,7 @@ class GraphQLAdapter:
 
         query = base_query.format(*args)
 
-        return (query, filter_variables.copy())
+        return (query, not_none_variables)
 
     @validate_call
     async def search(self, filters: MediaFilter) -> List[dict]:
@@ -96,8 +116,13 @@ class GraphQLAdapter:
         filter = Filter(graphql_map=media_filter_map, filter=filters)
 
         data = await self.api.get_data(*self._filter_to_grapql(get_media, 3, filter))
+        data = data["data"]["Page"]["media"]
+        results = []
 
-        return data["data"]["Page"]["media"]
+        # if filters[]
+        # for row in data:
+        #     print()
+        return data
 
     @validate_call
     async def get_trending_media(self, media_type: MediaType) -> List[dict]:
