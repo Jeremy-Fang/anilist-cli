@@ -5,6 +5,10 @@ from .libs.anilist.anilist import AnilistAPI
 from .libs.anilist.models.anime_preview import AnimePreview
 from .libs.anilist.models.media_title import MediaTitle
 
+from .libs.anilist.graphql_adapter import GraphQLAdapter
+
+from .libs.anilist.queries import *
+
 import asyncio
 
 import logging
@@ -27,64 +31,69 @@ async def start():
 
         # print(user)
 
-        trending_anime = await anilist.get_trending_media(MediaType.ANIME)
-        # trending_manga = await anilist.get_trending_media(MediaType.MANGA)
-        # all_time_anime = await anilist.get_all_time_media(MediaType.ANIME)
-        # all_time_manga = await anilist.get_all_time_media(MediaType.MANGA)
+        adapter = GraphQLAdapter(anilist)
 
-        # for entry in trending_anime[:5]:
-        #     print(entry)
+        # trending_anime = await adapter.get_trending_media(MediaType.ANIME)
 
-        anime = trending_anime[0]
-        print(anime)
+        trending_anime = await adapter.get_trending_media(MediaType.ANIME)
+        trending_manga = await adapter.get_trending_media(MediaType.MANGA)
+        all_time_anime = await adapter.get_all_time_media(MediaType.ANIME)
+        all_time_manga = await adapter.get_all_time_media(MediaType.MANGA)
 
-        anime["title"] = MediaTitle(**anime["title"])
-        anime["status"] = MediaStatus[anime["status"]]
-        anime["format"] = MediaFormat[anime["format"]]
-        anime["api"] = anilist
-        anime["average_score"] = anime["averageScore"]
+        for entry in trending_anime[:5]:
+            print(entry)
 
-        del anime["chapters"]
-        del anime["episodes"]
-        del anime["averageScore"]
-        anime_preview = AnimePreview(**anime)
+        # anime = trending_anime[0]
+        # print(anime)
 
-        print(anime_preview)
-        print(anime_preview.popularity)
-        # print("1----")
+        # anime["title"] = MediaTitle(**anime["title"])
+        # anime["status"] = MediaStatus[anime["status"]]
+        # anime["format"] = MediaFormat[anime["format"]]
+        # anime["api"] = anilist
 
-        # for entry in all_time_anime[:5]:
-        #     print(entry)
+        # del anime["chapters"]
+        # del anime["episodes"]
 
-        # print("2----")
+        # print(AnimePreview.__init__.__code__.co_varnames)
+        # anime_preview = AnimePreview(**anime)
 
-        # seasonal_anime = await anilist.get_seasonal_media(MediaType.ANIME)
+        # print(anime_preview)
+        # print(anime_preview.popularity)
 
-        # for entry in seasonal_anime[:5]:
-        #     print(entry)
+        print("1----")
 
-        # media_info = await anilist.get_media_info(1)
+        for entry in all_time_anime[:5]:
+            print(entry)
 
-        # print("media_info", media_info)
+        print("2----")
 
-        # media_filter = MediaFilter()
-        # media_filter["search_string"] = "re:zero"
+        seasonal_anime = await adapter.get_seasonal_media(MediaType.ANIME)
 
-        # results = await anilist.search(media_filter)
+        for entry in seasonal_anime[:5]:
+            print(entry)
 
-        # print("3------")
+        media_info = await adapter.get_media_info(1)
 
-        # for result in results:
-        #     print(result)
+        print("media_info", media_info)
 
-        # print("4-----")
+        media_filter = MediaFilter()
+        media_filter["search_string"] = "re:zero"
 
-        # media_list = await anilist.get_media_list(
-        #     "Chikaraa", MediaType.ANIME, [MediaListStatus.CURRENT]
-        # )
+        results = await adapter.search(media_filter)
 
-        # for i, entry in enumerate(media_list):
-        #     print(i, entry)
+        print("3------")
+
+        for result in results:
+            print(result)
+
+        print("4-----")
+
+        media_list = await adapter.get_media_list(
+            "Chikaraa", MediaType.ANIME, [MediaListStatus.CURRENT]
+        )
+
+        for i, entry in enumerate(media_list):
+            print(i, entry)
 
     except Exception as e:
         print(e)

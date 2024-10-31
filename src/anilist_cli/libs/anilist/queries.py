@@ -12,9 +12,9 @@ query {
 """
 
 get_media = """
-query ({args}) {{
+query ({}) {{
   Page {{
-    media({filters}) {{
+    media({}) {{
       id
       title {{
         english
@@ -27,15 +27,15 @@ query ({args}) {{
       episodes
       format
       type
-      {list_entry}
+      {}
     }}
   }}
 }}
 """
 
 get_expanded_media_info = """
-query({args}) {{
-  Media({filters}) {{
+query({}) {{
+  Media({}) {{
     id
     idMal
     nextAiringEpisode {{
@@ -62,7 +62,7 @@ query({args}) {{
     format
     genres
     meanScore
-    {list_entry}
+    {}
     popularity
     rankings {{
       allTime
@@ -128,8 +128,8 @@ mediaListEntry {
 """
 
 get_media_list = """
-query ({args}) {{
-  MediaListCollection({filters}) {{
+query ({}) {{
+  MediaListCollection({}) {{
     hasNextChunk
     lists {{
       entries {{

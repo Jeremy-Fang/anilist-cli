@@ -31,8 +31,6 @@ media_filter_map: dict = {
     "sort_by": "sort",
 }
 
-type_map: dict = {"int": "Int", "bool": "Boolean", "str": "String"}
-
 
 class MediaListFilter(TypedDict):
     user_name: str
