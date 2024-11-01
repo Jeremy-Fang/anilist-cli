@@ -11,6 +11,18 @@ from pydantic import BaseModel, Field
 
 
 class ListEntry(ABC, BaseModel):
+    """
+    Interface similar to a list entry
+
+    Attributes:
+    api: Any anilist api instance
+    list_entry_status: MediaListStatus | None status of a list entry
+    progress: int | None progress of list entry
+    repeat: int | None number of repeats of list entry
+    score: float | None score of the list entry
+    changes: TypedDict | None changes to make to the list entry
+    """
+
     api: Any
     list_entry_status: Optional[MediaListStatus] = Field(default=None)
     progress: Optional[int] = Field(default=None)

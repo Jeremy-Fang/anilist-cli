@@ -46,7 +46,6 @@ query({}) {{
       romaji
     }}
     averageScore
-    chapters
     description
     duration
     endDate {{
@@ -55,6 +54,7 @@ query({}) {{
       year
     }}
     episodes
+    chapters
     favourites
     format
     genres
@@ -164,14 +164,6 @@ query({}) {{
 #   }}
 # }}
 # """
-
-media_list_entry_preview = """
-mediaListEntry {
-  progress
-  status
-  score
-}
-"""
 
 get_media_list = """
 query ({}) {{

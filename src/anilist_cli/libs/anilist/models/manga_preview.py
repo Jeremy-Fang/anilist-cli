@@ -5,12 +5,13 @@ from .complete_document import CompleteDocument
 from .manga import Manga
 from .media_preview import MediaPreview
 
-from typing import Optional
-
-from pydantic import validate_call, Field
+from pydantic import validate_call
 
 
 class MangaPreview(MediaPreview):
+    """
+    Object containing preview info on a manga
+    """
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -18,7 +19,14 @@ class MangaPreview(MediaPreview):
     def __setitem__(self, key, value):
         return setattr(self, key, value)
 
-    async def get_info(self) -> None:
+    @validate_call
+    async def get_info(self) -> CompleteDocument:
+        """
+        Function that returns more detailed information about this manga
+
+        @rtype: CompleteDocument
+        @returns: manga media object masked as a CompleteDocument
+        """
         data = await self.api.get_media_info(self.media_id)
 
-        print(data)
+        return Manga(**data)

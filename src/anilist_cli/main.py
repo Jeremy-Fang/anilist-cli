@@ -33,37 +33,39 @@ async def start():
 
         anilist = GraphQLAdapter(api)
 
-        # trending_anime = await anilist.get_trending_media(MediaType.ANIME)
-        # trending_manga = await anilist.get_trending_media(MediaType.MANGA)
-        # all_time_anime = await anilist.get_all_time_media(MediaType.ANIME)
-        # all_time_manga = await anilist.get_all_time_media(MediaType.MANGA)
+        trending_anime = await anilist.get_trending_media(MediaType.ANIME)
+        trending_manga = await anilist.get_trending_media(MediaType.MANGA)
+        all_time_anime = await anilist.get_all_time_media(MediaType.ANIME)
+        all_time_manga = await anilist.get_all_time_media(MediaType.MANGA)
 
-        # for entry in trending_anime[:5]:
-        #     print(entry)
+        for entry in trending_anime[:5]:
+            print(entry)
 
-        # print("1----")
+        print("1----")
 
-        # for entry in all_time_anime[:5]:
-        #     print(entry)
+        for entry in all_time_anime[:5]:
+            print(entry)
 
+        print("media_info", await all_time_manga[0].get_info())
         print("2----")
 
         seasonal_anime = await anilist.get_seasonal_media(MediaType.ANIME)
 
         for i, entry in enumerate(seasonal_anime[:5]):
             print(i, entry)
+            print(i, "-------------------------------------------")
 
         print("media_info", await seasonal_anime[0].get_info())
 
-        # media_filter = MediaFilter()
-        # media_filter["search_string"] = "re:zero"
+        media_filter = MediaFilter()
+        media_filter["search_string"] = "re:zero"
 
-        # results = await anilist.search(media_filter)
+        results = await anilist.search(media_filter)
 
         print("3------")
 
-        # for result in results:
-        #     print(result)
+        for result in results:
+            print(result)
 
         print("4-----")
 

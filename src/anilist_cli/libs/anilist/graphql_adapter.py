@@ -12,15 +12,23 @@ from .models.media_preview import MediaPreview
 from .models.anime_preview import AnimePreview
 from .models.manga_preview import MangaPreview
 
+from .models.complete_document import CompleteDocument
+
 from typing import List, Tuple, Union
 
 from datetime import date
 
 from .queries import *
 
+from collections import deque
+import re
+
 from pydantic import validate_call
 
 basic_type_map = {"str": "String", "int": "Int", "float": "Float", "bool": "Boolean"}
+
+# regex cleaner to get rid of unwanted html tags
+CLEANR = re.compile("<.*?>")
 
 
 class GraphQLAdapter:
@@ -231,7 +239,7 @@ class GraphQLAdapter:
         return await self.search(media_filters)
 
     @validate_call
-    async def get_media_info(self, id: int) -> dict | None:
+    async def get_media_info(self, id: int) -> CompleteDocument:
         """
         Function that gets detailed information on a media entry matching
         the id
@@ -251,11 +259,29 @@ class GraphQLAdapter:
 
         data = data["data"]["Media"]
 
-        # cleans data
-        for key in list(data.keys()):
-            # removes fields with no value
-            if data[key] == None:
-                del data[key]
+        # removes fields with no value
+        q = deque([(data, key) for key in data.keys()])
+
+        while q:
+            context, key = q.popleft()
+            if type(context[key]) is dict:
+                for key_v in context[key].keys():
+                    q.append((context[key], key_v))
+            else:
+                if context[key] == None:
+                    del context[key]
+
+        # deletes remaining empty dictionaries
+        q = deque([(data, key) for key in data.keys()])
+
+        while q:
+            context, key = q.popleft()
+            if type(context[key]) is dict:
+                if len(context[key]) == 0:
+                    del context[key]
+                else:
+                    for key_v in context[key].keys():
+                        q.append((context[key], key_v))
 
         data["api"] = self
         data["title"] = MediaTitle(**data["title"])
@@ -263,27 +289,32 @@ class GraphQLAdapter:
         data["format"] = MediaFormat[data["format"]]
         data["type"] = MediaType[data["type"]]
         data["source"] = MediaSource[data["source"]]
-        data["season"] = MediaSeason[data["season"]]
+
+        if "season" in data:
+            data["season"] = MediaSeason[data["season"]]
 
         if "startDate" in data:
-            data["startDate"] = date(**data["startDate"])
+            if len(data["startDate"]) == 3:
+                data["startDate"] = date(**data["startDate"])
+            else:
+                del data["startDate"]
 
         if "endDate" in data:
-            data["endDate"] = date(**data["endDate"])
+            if len(data["endDate"]) == 3:
+                data["endDate"] = date(**data["endDate"])
+            else:
+                del data["endDate"]
+
+        if "description" in data:
+            data["description"] = re.sub(CLEANR, "", data["description"])
 
         for i, genre in enumerate(data["genres"]):
             data["genres"][i] = MediaGenre[
                 "_".join(genre.upper().replace("-", " ").split())
             ]
 
-        print(":)))))", data)
-
         if "mediaListEntry" in data:
             media_list_entry = data["mediaListEntry"]
-            # removes fields with no value
-            for key in list(media_list_entry.keys()):
-                if media_list_entry[key] == None:
-                    del media_list_entry[key]
 
             data["list_entry_status"] = MediaListStatus[media_list_entry["status"]]
             data["progress"] = media_list_entry["progress"]
