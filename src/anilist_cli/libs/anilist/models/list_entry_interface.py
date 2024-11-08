@@ -9,6 +9,8 @@ from typing import Optional, Any
 
 from pydantic import BaseModel, Field
 
+from datetime import date
+
 
 class ListEntry(ABC, BaseModel):
     """
@@ -20,7 +22,7 @@ class ListEntry(ABC, BaseModel):
     progress: int | None progress of list entry
     repeat: int | None number of repeats of list entry
     score: float | None score of the list entry
-    changes: TypedDict | None changes to make to the list entry
+    changes: ListEntryChanges | None changes to make to the list entry
     """
 
     api: Any
@@ -28,4 +30,7 @@ class ListEntry(ABC, BaseModel):
     progress: Optional[int] = Field(default=None)
     repeat: Optional[int] = Field(default=None)
     score: Optional[float] = Field(default=None)
+    notes: Optional[str] = Field(default=None)
+    started_at: Optional[date] = Field(default=None, alias="startedAt")
+    completed_at: Optional[date] = Field(default=None, alias="completedAt")
     changes: Optional[ListEntryChanges] = Field(default=None)

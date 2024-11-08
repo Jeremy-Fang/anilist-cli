@@ -16,7 +16,7 @@ def date_to_fuzzydate(date: date) -> dict:
     return {k: int(v) for k, v in zip(["year", "month", "day"], time)}
 
 
-def fuzzydate_to_date(fuzzy: dict) -> date:
+def fuzzydate_to_date(fuzzy: dict) -> date | None:
     """
     Function that serializes a JSON object into a date Object
 
@@ -25,5 +25,8 @@ def fuzzydate_to_date(fuzzy: dict) -> date:
     @rtype: date
     @returns: datetime.date Object represented by fuzzy
     """
+    for key in ["year", "month", "day"]:
+        if key not in fuzzy or fuzzy[key] == None:
+            return None
 
     return date(fuzzy["year"], fuzzy["month"], fuzzy["day"])

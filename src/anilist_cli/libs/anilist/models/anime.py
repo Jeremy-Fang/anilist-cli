@@ -7,6 +7,8 @@ from typing import List, Optional, Any
 
 from pydantic import Field, validate_call
 
+from ....utils.common import fuzzydate_to_date
+
 
 class Anime(CompleteDocument):
     """
@@ -58,11 +60,13 @@ class Anime(CompleteDocument):
         @returns: whether or not the changes were successfully pushed
         """
 
-        if self.changes == None or len(self.changes) == 0:
+        if self.changes == None:
             return False
 
         data = await self.api.update_media(self.media_id, self.changes)
 
-        print(data)
+        # update values with response data from anilist api
+        for key in data.keys():
+            setattr(self, key, data[key])
 
         return True

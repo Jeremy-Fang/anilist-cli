@@ -12,15 +12,3 @@ class MangaPreview(MediaPreview):
     """
     Object containing preview info on a manga
     """
-
-    @validate_call
-    async def get_info(self) -> CompleteDocument:
-        """
-        Function that returns more detailed information about this manga
-
-        @rtype: CompleteDocument
-        @returns: manga media object masked as a CompleteDocument
-        """
-        data = await self.api.get_media_info(self.media_id)
-
-        return Manga(**data)

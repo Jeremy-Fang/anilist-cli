@@ -1,14 +1,12 @@
 from .media_interface import Media
 from .list_entry_interface import ListEntry
 
-from .media_list_status import MediaListStatus
-
-from pydantic import BaseModel, validate_call
+from pydantic import validate_call
 
 from Typing import Any
 
 
-class MediaListEntry(ListEntry, BaseModel):
+class MediaListEntry(ListEntry):
     id: int
     media: Media
 

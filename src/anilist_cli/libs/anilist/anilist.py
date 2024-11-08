@@ -67,7 +67,7 @@ class AnilistAPI:
 
             return data["data"]["Viewer"]
 
-    def __check_cache(self, query: str, variables: dict) -> List[dict] | None:
+    def __check_cache__(self, query: str, variables: dict) -> List[dict] | None:
         """
         Helper function that checks if the request is already in cache
 
@@ -91,9 +91,9 @@ class AnilistAPI:
 
         return None
 
-    def _check_cache(func):
+    def _check_cache_(func):
         async def wrapper(self, *args, **kwargs):
-            data = self.__check_cache(*args, **kwargs)
+            data = self.__check_cache__(*args, **kwargs)
 
             if data:
                 return data
@@ -102,18 +102,18 @@ class AnilistAPI:
 
         return wrapper
 
-    @_check_cache
+    @_check_cache_
     @validate_call
     async def get_data(self, query: str, variables: dict) -> List[dict]:
         """
-        Abstraction around get queries, returning the first 50 entires
+        Abstraction around get queries, returning the first 50 entries
 
         @type query: str
         @type variables: dict
         @param query: graphQL query request
         @param variables: key-value variables for the query
         @rtype: List[dict]
-        @returns: dictionary containing top 50 results matching query and variables
+        @returns: List containing top 50 results matching query and variables
         """
 
         async with self._session.post(
@@ -130,9 +130,33 @@ class AnilistAPI:
 
             return data
 
-    async def create_media_list_entry(media_id: int, changes: dict = {}) -> bool:
+    @validate_call
+    async def authenticated_call(self, mutation: str, variables: dict) -> dict | None:
+        """
+        Abstraction around list entry mutations
 
-        return True
+        @type query: str
+        @type variables: dict
+        @param mutation: graphQL mutation request
+        @param variables: key-value variables for the mutation
+        @rtype: List[dict]
+        @returns: dictionary containing updated data
+        """
+
+        if self.token == None:
+            return None
+
+        async with self._session.post(
+            ANILIST_URL,
+            json={"query": mutation, "variables": variables},
+            headers=self.headers,
+        ) as response:
+            data = await response.json()
+
+            if response.status != 200:
+                return None
+
+            return data
 
     async def close(self) -> None:
         """

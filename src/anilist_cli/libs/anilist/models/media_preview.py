@@ -3,7 +3,7 @@ from .list_entry_interface import ListEntry
 
 from .complete_document import CompleteDocument
 
-from abc import abstractmethod
+from pydantic import validate_call
 
 
 class MediaPreview(ListEntry, Media):
@@ -18,5 +18,13 @@ class MediaPreview(ListEntry, Media):
     def __setitem__(self, key, value):
         return setattr(self, key, value)
 
-    @abstractmethod
-    def get_info(self) -> CompleteDocument: ...
+    @validate_call
+    async def get_info(self) -> CompleteDocument:
+        """
+        Function that returns more detailed information about this media
+
+        @rtype: CompleteDocument
+        @returns: anime or manga media object masked as a CompleteDocument
+        """
+
+        return await self.api.get_media_info(self.media_id)

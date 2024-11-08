@@ -28,7 +28,7 @@ class Media(ABC, BaseModel):
     media_id: int = Field(alias="id")
     media_title: MediaTitle = Field(alias="title")
     media_status: Optional[str] = Field(default=None, alias="status")
-    popularity: int
+    popularity: int = Field(default=None)
     average_score: Optional[float] = Field(default=None, alias="averageScore")
     media_format: Optional[str] = Field(default=None, alias="format")
     media_type: Optional[str] = Field(default=None, alias="type")

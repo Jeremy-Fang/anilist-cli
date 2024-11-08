@@ -1,6 +1,6 @@
 from .anilist import AnilistAPI
 
-from ...utils.common import date_to_fuzzydate
+from ...utils.common import date_to_fuzzydate, fuzzydate_to_date
 
 from enum import Enum
 
@@ -11,6 +11,8 @@ from .models.media_title import MediaTitle
 from .models.media_preview import MediaPreview
 from .models.anime_preview import AnimePreview
 from .models.manga_preview import MangaPreview
+from .models.anime import Anime
+from .models.manga import Manga
 
 from .models.complete_document import CompleteDocument
 from .models.list_entry_changes import ListEntryChanges
@@ -46,8 +48,63 @@ class GraphQLAdapter:
         """
         self.api = api
 
+    def __create_var_type_map__(self, variables: dict) -> dict:
+        """
+        Helper function that creates a map of variable names to their types
+        (ex. for the key-value pair "score": 80.4, the entry "score": "Float" is made
+        in the result)
+        """
+        res = {}
+
+        for key in variables.keys():
+            if type(variables[key]) is list:
+                if issubclass(type(variables[key][0]), Enum):
+                    res[key] = "[" + type(variables[key][0]).__name__ + "]"
+                else:
+                    res[key] = (
+                        "[" + basic_type_map[type(variables[key][0]).__name__] + "]"
+                    )
+            else:
+                if issubclass(type(variables[key]), Enum):
+                    res[key] = type(variables[key]).__name__
+                elif type(variables[key]) is date:
+                    res[key] = "FuzzyDateInput"
+                else:
+                    res[key] = basic_type_map[type(variables[key]).__name__]
+
+        return res
+
+    def __dict_enums_to_strs__(self, d: dict) -> None:
+        """
+        Helper function that converts enum values in a dictionary into
+        strings
+        """
+
+        for key in d.keys():
+            if type(d[key]) is list:
+                if issubclass(type(d[key][0]), Enum):
+                    val = []
+                    for entry in d[key]:
+                        val.append(entry.name)
+                    d[key] = val.copy()
+            else:
+                if issubclass(type(d[key]), Enum):
+                    d[key] = d[key].name
+
+        return None
+
+    def __dict_dates_to_fuzzy__(self, d: dict) -> None:
+        """
+        Helper function that converts datetime.date values in a
+        dictionary into fuzzy date objects
+        """
+
+        for key in d:
+            if type(d[key]) is date:
+                d[key] = date_to_fuzzydate(d[key])
+
     @validate_call
-    def _filter_to_graphql(
+    def __filter_to_graphql__(
         self,
         base_query: str,
         filter: Union[MediaFilter, MediaListFilter],
@@ -57,7 +114,6 @@ class GraphQLAdapter:
         converts the filter into graphQL format, and replaces them
 
         @type base_query: str
-        @type format_args: int
         @type filter: MediaFilter | MediaListFilter
         @param base_query: graphQL base string
         @param format_args: number of args to replace in base query
@@ -69,40 +125,10 @@ class GraphQLAdapter:
         variables = filter.model_dump(by_alias=True)
         not_none_variables = {key: value for (key, value) in variables.items() if value}
 
-        variable_types = {}
+        variable_types = self.__create_var_type_map__(not_none_variables)
 
-        # creates map for type of each filter
-        for key in not_none_variables.keys():
-            if type(not_none_variables[key]) is list:
-                if issubclass(type(not_none_variables[key][0]), Enum):
-                    variable_types[key] = (
-                        "[" + type(not_none_variables[key][0]).__name__ + "]"
-                    )
-                else:
-                    variable_types[key] = (
-                        "["
-                        + basic_type_map[type(not_none_variables[key][0]).__name__]
-                        + "]"
-                    )
-            else:
-                if issubclass(type(not_none_variables[key]), Enum):
-                    variable_types[key] = type(not_none_variables[key]).__name__
-                else:
-                    variable_types[key] = basic_type_map[
-                        type(not_none_variables[key]).__name__
-                    ]
-
-        # maps enum values to their names for filters
-        for key in not_none_variables.keys():
-            if type(not_none_variables[key]) is list:
-                if issubclass(type(not_none_variables[key][0]), Enum):
-                    val = []
-                    for entry in not_none_variables[key]:
-                        val.append(entry.name)
-                    not_none_variables[key] = val.copy()
-            else:
-                if issubclass(type(not_none_variables[key]), Enum):
-                    not_none_variables[key] = not_none_variables[key].name
+        self.__dict_enums_to_strs__(not_none_variables)
+        self.__dict_dates_to_fuzzy__(not_none_variables)
 
         query_variables_string = ", ".join(
             ["$" + key + " : " + variable_types[key] for key in variable_types.keys()]
@@ -128,7 +154,7 @@ class GraphQLAdapter:
         @returns: List containing up to 50 dictionaries representing media
         """
 
-        data = await self.api.get_data(*self._filter_to_graphql(get_media, filters))
+        data = await self.api.get_data(*self.__filter_to_graphql__(get_media, filters))
 
         data = data["data"]["Page"]["media"]
 
@@ -167,46 +193,30 @@ class GraphQLAdapter:
         return results
 
     @validate_call
-    def _changes_to_graphql(self, base_query: str, changes: dict) -> Tuple:
+    def __changes_to_graphql__(
+        self, base_query: str, media_id: int, changes: ListEntryChanges
+    ) -> Tuple:
+        """
+        Adapter function that takes a base graphql string with variables,
+        converts the changes into graphQL format, and replaces them
 
-        not_none_variables = {key: value for (key, value) in changes.items() if value}
+        @type base_query: str
+        @type media_id: int
+        @type changes: ListEntryChanges
+        @param base_query: graphQL base string
+        @param changes: pending changes for a list entry
+        @rtype: Tuple
+        @returns: tuple containing a resulting graphQL string and a variable map
+        """
+        variables = changes.model_dump(by_alias=True)
+        not_none_variables = {key: value for (key, value) in variables.items() if value}
 
-        variable_types = {}
+        not_none_variables["mediaId"] = media_id
 
-        # creates map for type of each variable
-        for key in not_none_variables.keys():
-            if type(not_none_variables[key]) is list:
-                if issubclass(type(not_none_variables[key][0]), Enum):
-                    variable_types[key] = (
-                        "[" + type(not_none_variables[key][0]).__name__ + "]"
-                    )
-                else:
-                    variable_types[key] = (
-                        "["
-                        + basic_type_map[type(not_none_variables[key][0]).__name__]
-                        + "]"
-                    )
-            else:
-                if issubclass(type(not_none_variables[key]), Enum):
-                    variable_types[key] = type(not_none_variables[key]).__name__
-                elif type(not_none_variables[key]) is date:
-                    variable_types[key] = "FuzzyDateInput"
-                else:
-                    variable_types[key] = basic_type_map[
-                        type(not_none_variables[key]).__name__
-                    ]
+        variable_types = self.__create_var_type_map__(not_none_variables)
 
-        # maps enum values to their names for variable
-        for key in not_none_variables.keys():
-            if type(not_none_variables[key]) is list:
-                if issubclass(type(not_none_variables[key][0]), Enum):
-                    val = []
-                    for entry in not_none_variables[key]:
-                        val.append(entry.name)
-                    not_none_variables[key] = val.copy()
-            else:
-                if issubclass(type(not_none_variables[key]), Enum):
-                    not_none_variables[key] = not_none_variables[key].name
+        self.__dict_enums_to_strs__(not_none_variables)
+        self.__dict_dates_to_fuzzy__(not_none_variables)
 
         query_variables_string = ", ".join(
             ["$" + key + " : " + variable_types[key] for key in variable_types.keys()]
@@ -215,11 +225,6 @@ class GraphQLAdapter:
             [key + " : " + "$" + key for key in not_none_variables.keys()]
         )
 
-        # converts dates into fuzzydates
-        for key in not_none_variables:
-            if type(not_none_variables[key]) is date:
-                not_none_variables[key] = date_to_fuzzydate(not_none_variables[key])
-
         args = [query_variables_string, updates_string]
 
         query = base_query.format(*args)
@@ -227,10 +232,43 @@ class GraphQLAdapter:
         return (query, not_none_variables)
 
     @validate_call
-    async def update_media(self, media_id: int, changes: ListEntryChanges) -> dict:
+    async def update_media(
+        self, media_id: int, changes: ListEntryChanges
+    ) -> dict | None:
+        """
+        Function that applies ListEntryChanges to the media which corresponds to
+        the list entry for the logged in user if possible (or creates list entry
+        if it does not exist)
 
-        print(*self._changes_to_graphql(update_entry, {"mediaId": media_id, **changes}))
-        return {}
+        @type media_id: int
+        @type changes: ListEntryChanges
+        @param media_id: id of media corresponding to list entry to update
+        @param changes: Object representing the changes to apply to the list entry
+        @rtype: dict | None
+        @returns dict containing updated list entry info and None if the update could not be completed
+        """
+
+        data = await self.api.authenticated_call(
+            *self.__changes_to_graphql__(update_entry, media_id, changes)
+        )
+
+        data = data["data"]["SaveMediaListEntry"]
+
+        data["list_entry_status"] = data["status"]
+        data["started_at"] = data["startedAt"]
+        data["completed_at"] = data["completedAt"]
+
+        del data["status"]
+        del data["startedAt"]
+        del data["completedAt"]
+
+        for key in list(data.keys()):
+            if type(data[key]) is dict:
+                data[key] = fuzzydate_to_date(data[key])
+            if data[key] == None:
+                del data[key]
+
+        return data
 
     @validate_call
     async def get_trending_media(self, media_type: MediaType) -> List[MediaPreview]:
@@ -317,10 +355,30 @@ class GraphQLAdapter:
         media_filters["media_id"] = id
 
         data = await self.api.get_data(
-            *self._filter_to_graphql(get_expanded_media_info, media_filters)
+            *self.__filter_to_graphql__(get_expanded_media_info, media_filters)
         )
 
         data = data["data"]["Media"]
+
+        data["api"] = self
+        data["title"] = MediaTitle(**data["title"])
+        data["startDate"] = fuzzydate_to_date(data.get("startDate", None))
+        data["endDate"] = fuzzydate_to_date(data.get("endDate", None))
+
+        if "description" in data:
+            data["description"] = re.sub(CLEANR, "", data["description"])
+
+        for i, genre in enumerate(data["genres"]):
+            data["genres"][i] = "_".join(genre.upper().replace("-", " ").split())
+
+        if "mediaListEntry" in data:
+            media_list_entry = data["mediaListEntry"]
+
+            data["list_entry_status"] = media_list_entry["status"]
+            data["progress"] = media_list_entry["progress"]
+            data["score"] = (
+                media_list_entry["score"] if media_list_entry["score"] != 0 else None
+            )
 
         # removes fields with no value
         q = deque([(data, key) for key in data.keys()])
@@ -346,37 +404,10 @@ class GraphQLAdapter:
                     for key_v in context[key].keys():
                         q.append((context[key], key_v))
 
-        data["api"] = self
-        data["title"] = MediaTitle(**data["title"])
-
-        if "startDate" in data:
-            if len(data["startDate"]) == 3:
-                data["startDate"] = date(**data["startDate"])
-            else:
-                del data["startDate"]
-
-        if "endDate" in data:
-            if len(data["endDate"]) == 3:
-                data["endDate"] = date(**data["endDate"])
-            else:
-                del data["endDate"]
-
-        if "description" in data:
-            data["description"] = re.sub(CLEANR, "", data["description"])
-
-        for i, genre in enumerate(data["genres"]):
-            data["genres"][i] = "_".join(genre.upper().replace("-", " ").split())
-
-        if "mediaListEntry" in data:
-            media_list_entry = data["mediaListEntry"]
-
-            data["list_entry_status"] = media_list_entry["status"]
-            data["progress"] = media_list_entry["progress"]
-            data["score"] = (
-                media_list_entry["score"] if media_list_entry["score"] != 0 else None
-            )
-
-        return data
+        if data["type"] == "ANIME":
+            return Anime(**data)
+        else:
+            return Manga(**data)
 
     @validate_call
     async def get_media_list(
@@ -405,7 +436,7 @@ class GraphQLAdapter:
         list_filters["status_in"] = media_list_status
 
         data = await self.api.get_data(
-            *self._filter_to_graphql(get_media_list, 2, list_filters)
+            *self.__filter_to_graphql__(get_media_list, list_filters)
         )
 
         return data["data"]["MediaListCollection"]["lists"]

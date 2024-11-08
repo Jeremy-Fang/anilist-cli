@@ -57,14 +57,8 @@ async def start():
         print("media_info", anime_0)
 
         print(await anime_0.update_media_entry())
-        anime_0.add_changes("status", MediaListStatus.COMPLETED)
-        anime_0.add_changes("score", 12)
+        anime_0.add_changes("score", 80.0)
         anime_0.add_changes("started_at", date.today())
-
-        fuzzy = date_to_fuzzydate(date.today())
-
-        print("haha", fuzzy)
-        print("hello", fuzzydate_to_date(fuzzy))
 
         print(anime_0.changes)
         print(await anime_0.update_media_entry())
