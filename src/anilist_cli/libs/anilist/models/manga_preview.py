@@ -13,12 +13,6 @@ class MangaPreview(MediaPreview):
     Object containing preview info on a manga
     """
 
-    def __getitem__(self, key):
-        return getattr(self, key)
-
-    def __setitem__(self, key, value):
-        return setattr(self, key, value)
-
     @validate_call
     async def get_info(self) -> CompleteDocument:
         """

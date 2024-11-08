@@ -165,6 +165,28 @@ query({}) {{
 # }}
 # """
 
+update_entry = """
+mutation({}) {{
+  SaveMediaListEntry({}) {{
+    score
+    status
+    progress
+    repeat
+    notes
+    startedAt {{
+      day
+      month
+      year
+    }}
+    completedAt {{
+      day
+      month
+      year
+    }}
+  }}
+}}
+"""
+
 get_media_list = """
 query ({}) {{
   MediaListCollection({}) {{

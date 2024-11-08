@@ -1,6 +1,6 @@
 from .anilist import AnilistAPI
 
-import json
+from ...utils.common import date_to_fuzzydate
 
 from enum import Enum
 
@@ -13,6 +13,7 @@ from .models.anime_preview import AnimePreview
 from .models.manga_preview import MangaPreview
 
 from .models.complete_document import CompleteDocument
+from .models.list_entry_changes import ListEntryChanges
 
 from typing import List, Tuple, Union
 
@@ -164,6 +165,72 @@ class GraphQLAdapter:
                 results.append(MangaPreview(**entry))
 
         return results
+
+    @validate_call
+    def _changes_to_graphql(self, base_query: str, changes: dict) -> Tuple:
+
+        not_none_variables = {key: value for (key, value) in changes.items() if value}
+
+        variable_types = {}
+
+        # creates map for type of each variable
+        for key in not_none_variables.keys():
+            if type(not_none_variables[key]) is list:
+                if issubclass(type(not_none_variables[key][0]), Enum):
+                    variable_types[key] = (
+                        "[" + type(not_none_variables[key][0]).__name__ + "]"
+                    )
+                else:
+                    variable_types[key] = (
+                        "["
+                        + basic_type_map[type(not_none_variables[key][0]).__name__]
+                        + "]"
+                    )
+            else:
+                if issubclass(type(not_none_variables[key]), Enum):
+                    variable_types[key] = type(not_none_variables[key]).__name__
+                elif type(not_none_variables[key]) is date:
+                    variable_types[key] = "FuzzyDateInput"
+                else:
+                    variable_types[key] = basic_type_map[
+                        type(not_none_variables[key]).__name__
+                    ]
+
+        # maps enum values to their names for variable
+        for key in not_none_variables.keys():
+            if type(not_none_variables[key]) is list:
+                if issubclass(type(not_none_variables[key][0]), Enum):
+                    val = []
+                    for entry in not_none_variables[key]:
+                        val.append(entry.name)
+                    not_none_variables[key] = val.copy()
+            else:
+                if issubclass(type(not_none_variables[key]), Enum):
+                    not_none_variables[key] = not_none_variables[key].name
+
+        query_variables_string = ", ".join(
+            ["$" + key + " : " + variable_types[key] for key in variable_types.keys()]
+        )
+        updates_string = ", ".join(
+            [key + " : " + "$" + key for key in not_none_variables.keys()]
+        )
+
+        # converts dates into fuzzydates
+        for key in not_none_variables:
+            if type(not_none_variables[key]) is date:
+                not_none_variables[key] = date_to_fuzzydate(not_none_variables[key])
+
+        args = [query_variables_string, updates_string]
+
+        query = base_query.format(*args)
+
+        return (query, not_none_variables)
+
+    @validate_call
+    async def update_media(self, media_id: int, changes: ListEntryChanges) -> dict:
+
+        print(*self._changes_to_graphql(update_entry, {"mediaId": media_id, **changes}))
+        return {}
 
     @validate_call
     async def get_trending_media(self, media_type: MediaType) -> List[MediaPreview]:
