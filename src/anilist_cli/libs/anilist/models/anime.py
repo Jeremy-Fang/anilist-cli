@@ -1,8 +1,9 @@
 from .enums import *
 
 from .complete_document import CompleteDocument
+from .list_entry_changes import ListEntryChanges
 
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from pydantic import Field, validate_call
 
@@ -13,18 +14,27 @@ class Anime(CompleteDocument):
 
     Attributes:
     duration: int | None duration of anime episode
-    season: MediaSeason
-    end_date: date end date of media
-    favorites: int number of users who favorited a media
-    source: MediaSource source for the media (ex. light novel)
+    season: str | None season that the media aired in
+    season_year: int | None year which the media will air
     """
 
     duration: Optional[int] = Field(default=None)
-    season: MediaSeason
-    season_year: int = Field(alias="seasonYear")
+    season: Optional[str] = Field(default=None)
+    season_year: Optional[int] = Field(alias="seasonYear")
 
     @validate_call
-    def add_changes(self) -> bool:
+    def add_changes(self, key: str, value: Any) -> bool:
+        if key not in ListEntryChanges.keys():
+            return False
+
+        if type(value) != ListEntryChanges.required_type(key):
+            return False
+
+        if self.changes == None:
+            self.changes = ListEntryChanges()
+
+        self.changes[key] = value
+
         return True
 
     @validate_call

@@ -15,11 +15,11 @@ class Media(ABC, BaseModel):
     Attributes:
     media_id: int anilist media id
     media_title: MediaTitle title of media entry
-    media_status: MediaStatus current releasing status of media entry
+    media_status: str | None current releasing status of media entry
     popularity: int number of users who added this media to their lists
     average_score: float | None average score of the media
-    media_format: MediaFormat format of the media
-    media_type: MediaType anime or manga
+    media_format: str | None format of the media
+    media_type: str | None anime or manga
     episodes: int | None number of episodes in the media
     chapters: int | None number of chapters in the media
     volumes: int | None number of volumes in the media
@@ -27,11 +27,11 @@ class Media(ABC, BaseModel):
 
     media_id: int = Field(alias="id")
     media_title: MediaTitle = Field(alias="title")
-    media_status: MediaStatus = Field(alias="status")
+    media_status: Optional[str] = Field(default=None, alias="status")
     popularity: int
     average_score: Optional[float] = Field(default=None, alias="averageScore")
-    media_format: MediaFormat = Field(alias="format")
-    media_type: MediaType = Field(alias="type")
+    media_format: Optional[str] = Field(default=None, alias="format")
+    media_type: Optional[str] = Field(default=None, alias="type")
     episodes: Optional[int] = Field(default=None)
     chapters: Optional[int] = Field(default=None)
     volumes: Optional[int] = Field(default=None)

@@ -16,7 +16,7 @@ class ListEntry(ABC, BaseModel):
 
     Attributes:
     api: Any anilist api instance
-    list_entry_status: MediaListStatus | None status of a list entry
+    list_entry_status: str | None status of a list entry
     progress: int | None progress of list entry
     repeat: int | None number of repeats of list entry
     score: float | None score of the list entry
@@ -24,7 +24,7 @@ class ListEntry(ABC, BaseModel):
     """
 
     api: Any
-    list_entry_status: Optional[MediaListStatus] = Field(default=None)
+    list_entry_status: Optional[str] = Field(default=None)
     progress: Optional[int] = Field(default=None)
     repeat: Optional[int] = Field(default=None)
     score: Optional[float] = Field(default=None)

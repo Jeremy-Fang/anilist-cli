@@ -1,5 +1,3 @@
-from .enums import *
-
 from .complete_document import CompleteDocument
 
 from .anime import Anime

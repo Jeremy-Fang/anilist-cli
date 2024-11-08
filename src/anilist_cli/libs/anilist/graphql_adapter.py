@@ -46,10 +46,9 @@ class GraphQLAdapter:
         self.api = api
 
     @validate_call
-    def _filter_to_grapql(
+    def _filter_to_graphql(
         self,
         base_query: str,
-        format_args: int,
         filter: Union[MediaFilter, MediaListFilter],
     ) -> Tuple:
         """
@@ -128,21 +127,18 @@ class GraphQLAdapter:
         @returns: List containing up to 50 dictionaries representing media
         """
 
-        data = await self.api.get_data(*self._filter_to_grapql(get_media, 2, filters))
+        data = await self.api.get_data(*self._filter_to_graphql(get_media, filters))
 
         data = data["data"]["Page"]["media"]
 
         # cleans data
-        for entry in data:
+        for i, entry in enumerate(data):
             for key in list(entry.keys()):
                 # removes fields with no value
                 if entry[key] == None:
                     del entry[key]
             entry["api"] = self
             entry["title"] = MediaTitle(**entry["title"])
-            entry["status"] = MediaStatus[entry["status"]]
-            entry["format"] = MediaFormat[entry["format"]]
-            entry["type"] = MediaType[entry["type"]]
 
             if "mediaListEntry" in entry:
                 media_list_entry = entry["mediaListEntry"]
@@ -151,7 +147,7 @@ class GraphQLAdapter:
                     if media_list_entry[key] == None:
                         del media_list_entry[key]
 
-                entry["list_entry_status"] = MediaListStatus[media_list_entry["status"]]
+                entry["list_entry_status"] = media_list_entry["status"]
                 entry["progress"] = media_list_entry["progress"]
                 entry["score"] = (
                     media_list_entry["score"]
@@ -162,7 +158,7 @@ class GraphQLAdapter:
         results = []
 
         for entry in data:
-            if entry["type"] == MediaType.ANIME:
+            if entry["type"] == "ANIME":
                 results.append(AnimePreview(**entry))
             else:
                 results.append(MangaPreview(**entry))
@@ -246,15 +242,15 @@ class GraphQLAdapter:
 
         @type id: int
         @param id: id of media
-        @rtype: dict | None
-        @returns: dictionary containing detailed information on the matching media
+        @rtype: CompleteDocument
+        @returns: document containing detailed information on the matching media
         """
 
         media_filters = MediaFilter()
         media_filters["media_id"] = id
 
         data = await self.api.get_data(
-            *self._filter_to_grapql(get_expanded_media_info, 2, media_filters)
+            *self._filter_to_graphql(get_expanded_media_info, media_filters)
         )
 
         data = data["data"]["Media"]
@@ -285,13 +281,6 @@ class GraphQLAdapter:
 
         data["api"] = self
         data["title"] = MediaTitle(**data["title"])
-        data["status"] = MediaStatus[data["status"]]
-        data["format"] = MediaFormat[data["format"]]
-        data["type"] = MediaType[data["type"]]
-        data["source"] = MediaSource[data["source"]]
-
-        if "season" in data:
-            data["season"] = MediaSeason[data["season"]]
 
         if "startDate" in data:
             if len(data["startDate"]) == 3:
@@ -309,14 +298,12 @@ class GraphQLAdapter:
             data["description"] = re.sub(CLEANR, "", data["description"])
 
         for i, genre in enumerate(data["genres"]):
-            data["genres"][i] = MediaGenre[
-                "_".join(genre.upper().replace("-", " ").split())
-            ]
+            data["genres"][i] = "_".join(genre.upper().replace("-", " ").split())
 
         if "mediaListEntry" in data:
             media_list_entry = data["mediaListEntry"]
 
-            data["list_entry_status"] = MediaListStatus[media_list_entry["status"]]
+            data["list_entry_status"] = media_list_entry["status"]
             data["progress"] = media_list_entry["progress"]
             data["score"] = (
                 media_list_entry["score"] if media_list_entry["score"] != 0 else None
@@ -351,7 +338,7 @@ class GraphQLAdapter:
         list_filters["status_in"] = media_list_status
 
         data = await self.api.get_data(
-            *self._filter_to_grapql(get_media_list, 2, list_filters)
+            *self._filter_to_graphql(get_media_list, 2, list_filters)
         )
 
         return data["data"]["MediaListCollection"]["lists"]
