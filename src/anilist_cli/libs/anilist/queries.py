@@ -33,6 +33,13 @@ query ({}) {{
         score
       }}
     }}
+    pageInfo {{
+      hasNextPage
+      currentPage
+      lastPage
+      perPage
+      total
+    }}
   }}
 }}
 """
@@ -199,13 +206,7 @@ query ({}) {{
             english
             romaji
           }}
-          chapters
-          episodes
-          isFavourite
-          status
-          type
         }}
-        advancedScores
         startedAt {{
           day
           month

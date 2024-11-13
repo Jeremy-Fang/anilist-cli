@@ -17,7 +17,7 @@ class ListEntry(ABC, BaseModel):
     Interface similar to a list entry
 
     Attributes:
-    api: Any anilist api instance
+    adapter: Any anilist adapter address
     list_entry_status: str | None status of a list entry
     progress: int | None progress of list entry
     repeat: int | None number of repeats of list entry
@@ -25,7 +25,7 @@ class ListEntry(ABC, BaseModel):
     changes: ListEntryChanges | None changes to make to the list entry
     """
 
-    api: Any
+    adapter: Any
     list_entry_status: Optional[str] = Field(default=None)
     progress: Optional[int] = Field(default=None)
     repeat: Optional[int] = Field(default=None)

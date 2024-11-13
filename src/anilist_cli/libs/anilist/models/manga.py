@@ -41,7 +41,7 @@ class Manga(CompleteDocument):
         return True
 
     @validate_call
-    async def update_media_entry(self) -> bool:
+    async def update_list_entry(self) -> bool:
         """
         Function that pushes pending changes of this media entry to Anilist
 
@@ -52,8 +52,12 @@ class Manga(CompleteDocument):
         if self.changes == None:
             return False
 
-        data = await self.api.update_media(self.media_id, self.changes)
+        data = await self.adapter.update_list_entry(self.media_id, self.changes)
 
-        print(data)
+        # update values with response data from anilist api
+        for key in data.keys():
+            setattr(self, key, data[key])
+
+        self.changes = None
 
         return True

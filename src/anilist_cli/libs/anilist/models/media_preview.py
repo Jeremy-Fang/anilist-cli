@@ -8,7 +8,7 @@ from pydantic import validate_call
 
 class MediaPreview(ListEntry, Media):
     """
-    Interface containing one abstract function to obtain more
+    Object representing a media pewview containing one function to obtain
     detailed info on the media
     """
 
@@ -27,4 +27,4 @@ class MediaPreview(ListEntry, Media):
         @returns: anime or manga media object masked as a CompleteDocument
         """
 
-        return await self.api.get_media_info(self.media_id)
+        return await self.adapter.get_media_info(self.media_id)
