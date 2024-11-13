@@ -18,6 +18,17 @@ class MediaListFilter(BaseModel):
         return setattr(self, key, value)
 
 
+class PageFilter(BaseModel):
+    page: Optional[int] = Field(default=1)
+    per_page: Optional[int] = Field(default=50, alias="perPage")
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+    def __setitem__(self, key, value):
+        return setattr(self, key, value)
+
+
 class MediaFilter(BaseModel):
     media_id: Optional[int] = Field(default=None, alias="id")
     season: Optional[MediaSeason] = Field(default=None)

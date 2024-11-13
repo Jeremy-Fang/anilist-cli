@@ -19,7 +19,7 @@ from .models.list_entry_changes import ListEntryChanges
 
 from .models.media_list_entry import MediaListEntry
 
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 
 from datetime import date
 
@@ -50,29 +50,30 @@ class GraphQLAdapter:
         """
         self.api = api
 
-    def __create_var_type_map__(self, variables: dict) -> dict:
+    def __create_var_type_map__(self, variables: List[dict]) -> dict:
         """
-        Helper function that creates a map of variable names to their types
-        (ex. for the key-value pair "score": 80.4, the entry "score": "Float" is made
-        in the result)
+        Helper function that flattens a list of dictionaries containing variable names to
+        their types (ex. for the key-value pair "score": 80.4, the entry "score": "Float" is made
+        in the result). Overlapping keys from different dicts is not allowed.
         """
         res = {}
 
-        for key in variables.keys():
-            if type(variables[key]) is list:
-                if issubclass(type(variables[key][0]), Enum):
-                    res[key] = "[" + type(variables[key][0]).__name__ + "]"
+        for d in variables:
+            if not d:
+                continue
+            for key in d.keys():
+                if type(d[key]) is list:
+                    if issubclass(type(d[key][0]), Enum):
+                        res[key] = "[" + type(d[key][0]).__name__ + "]"
+                    else:
+                        res[key] = "[" + basic_type_map[type(d[key][0]).__name__] + "]"
                 else:
-                    res[key] = (
-                        "[" + basic_type_map[type(variables[key][0]).__name__] + "]"
-                    )
-            else:
-                if issubclass(type(variables[key]), Enum):
-                    res[key] = type(variables[key]).__name__
-                elif type(variables[key]) is date:
-                    res[key] = "FuzzyDateInput"
-                else:
-                    res[key] = basic_type_map[type(variables[key]).__name__]
+                    if issubclass(type(d[key]), Enum):
+                        res[key] = type(d[key]).__name__
+                    elif type(d[key]) is date:
+                        res[key] = "FuzzyDateInput"
+                    else:
+                        res[key] = basic_type_map[type(d[key]).__name__]
 
         return res
 
@@ -109,8 +110,7 @@ class GraphQLAdapter:
 
     def __parse_media_list_entry__(self, d: dict) -> None:
         """
-        Helper function that cleans a dictionary containing a
-        media list entry
+        Helper function that flattens a media list entry in a dictionary
         """
 
         if "mediaListEntry" not in d or d["mediaListEntry"] == None:
@@ -128,11 +128,62 @@ class GraphQLAdapter:
 
         return None
 
+    def __clean_query__(
+        self,
+        query: str,
+        media_type: MediaType = MediaType.ANIME,
+        logged_in: bool = False,
+    ):
+        """
+        Helper function that removes properties from the base query that are guarenteed
+        to be empty
+        """
+
+        anime_exclusive_properties = sorted(
+            ["episodes", "duration", "season", "seasonYear"], reverse=True
+        )
+        manga_exclusive_properties = sorted(["chapters", "volumes"], reverse=True)
+        media_list_regex = r"mediaListEntry {{[^}]+}}"
+
+        res = query
+
+        if media_type == MediaType.ANIME:
+            for property in manga_exclusive_properties:
+                res = res.replace(property, "")
+        else:
+            for property in anime_exclusive_properties:
+                res = res.replace(property, "")
+
+        if not logged_in:
+            res = re.sub(media_list_regex, "", res)
+
+        return res
+
+    def __format_query__(self, query: str, format_strings: dict):
+        """
+        Function which replaces variables in a format string with matching values
+        in the format_strings dict
+        """
+
+        format_placeholders = [s[2:-2] for s in re.findall(r"\(\{.*\}\)", query)]
+
+        # remove format strings which are not one of the placeholders
+        for key in list(format_strings.keys()):
+            if key not in format_placeholders:
+                del format_strings[key]
+
+        for item in format_placeholders:
+            if item not in format_strings:
+                format_strings[item] = ""
+
+        return query.format(**format_strings)
+
     @validate_call
     def __filter_to_graphql__(
         self,
         base_query: str,
         filter: Union[MediaFilter, MediaListFilter],
+        page_filter: Optional[PageFilter] = None,
     ) -> Tuple:
         """
         Adapter function that takes a base graphql string with variables,
@@ -140,57 +191,84 @@ class GraphQLAdapter:
 
         @type base_query: str
         @type filter: MediaFilter | MediaListFilter
+        @type page_filter: PageFilter | None
         @param base_query: graphQL base string
-        @param format_args: number of args to replace in base query
         @param filter: a type of filter for media
+        @param page_filter: page parameters for the query
         @rtype: Tuple
         @returns: tuple containing a resulting graphQL string and a variable map
         """
 
+        # removes properties from base query that are guarenteed to be empty
+        base_query = self.__clean_query__(
+            base_query, filter["media_type"], self.api.user
+        )
+
         variables = filter.model_dump(by_alias=True)
-        not_none_variables = {key: value for (key, value) in variables.items() if value}
+        page_variables = page_filter.model_dump(by_alias=True) if page_filter else None
 
-        variable_types = self.__create_var_type_map__(not_none_variables)
+        query_variables = {key: value for (key, value) in variables.items() if value}
 
-        self.__dict_enums_to_strs__(not_none_variables)
-        self.__dict_dates_to_fuzzy__(not_none_variables)
+        variable_types = self.__create_var_type_map__([page_variables, query_variables])
 
-        query_variables_string = ", ".join(
+        self.__dict_enums_to_strs__(query_variables)
+        self.__dict_dates_to_fuzzy__(query_variables)
+
+        args = {}
+
+        args["variables"] = ", ".join(
             ["$" + key + " : " + variable_types[key] for key in variable_types.keys()]
         )
-        filters_string = ", ".join(
-            [key + " : " + "$" + key for key in not_none_variables.keys()]
-        )
 
-        args = [query_variables_string, filters_string]
+        if page_filter:
+            args["page_query"] = ", ".join(
+                [key + " : " + "$" + key for key in page_variables.keys()]
+            )
 
-        query = base_query.format(*args)
+        if type(filter) is MediaFilter:
+            args["media_query"] = ", ".join(
+                [key + " : " + "$" + key for key in query_variables.keys()]
+            )
+        else:
+            args["media_list_query"] = ", ".join(
+                [key + " : " + "$" + key for key in query_variables.keys()]
+            )
 
-        return (query, not_none_variables)
+        query = self.__format_query__(base_query, args)
+
+        if page_filter:
+            for key in page_variables.keys():
+                query_variables[key] = page_variables[key]
+
+        return (query, query_variables)
 
     @validate_call
-    async def search(self, filters: MediaFilter) -> Tuple:
+    async def search(
+        self,
+        filters: MediaFilter,
+        page_filter: PageFilter = PageFilter(perPage=20),
+    ) -> Tuple:
         """
         Function that queries anilist API for media filtered by filters
 
         @type filters: MediaFilter
-        @param filters: TypedDict containing media filter key-value pairs
+        @type page_filter: PageFilter
+        @param filters: MediaFilter containing media filter key-value pairs
+        @param page_filter: PageFilter containing page parameters for the query
         @rtype: Tuple
-        @returns: Tuple containing dictionaries representing the top 50 \
+        @returns: Tuple containing dictionaries representing the top 20 \
         media matching the filters and results info
         """
 
-        data = await self.api.get_data(*self.__filter_to_graphql__(get_media, filters))
+        data = await self.api.get_data(
+            *self.__filter_to_graphql__(get_media, filters, page_filter)
+        )
 
         results_info = data["data"]["Page"]["pageInfo"]
         data = data["data"]["Page"]["media"]
 
         # cleans data
         for i, entry in enumerate(data):
-            for key in list(entry.keys()):
-                # removes fields with no value
-                if entry[key] == None:
-                    del entry[key]
             entry["adapter"] = self
             entry["title"] = MediaTitle(**entry["title"])
 
@@ -224,27 +302,27 @@ class GraphQLAdapter:
         """
 
         variables = changes.model_dump(by_alias=True)
-        not_none_variables = {key: value for (key, value) in variables.items() if value}
+        query_variables = {key: value for (key, value) in variables.items() if value}
 
-        not_none_variables["mediaId"] = media_id
+        query_variables["mediaId"] = media_id
 
-        variable_types = self.__create_var_type_map__(not_none_variables)
+        variable_types = self.__create_var_type_map__(query_variables)
 
-        self.__dict_enums_to_strs__(not_none_variables)
-        self.__dict_dates_to_fuzzy__(not_none_variables)
+        self.__dict_enums_to_strs__(query_variables)
+        self.__dict_dates_to_fuzzy__(query_variables)
 
         query_variables_string = ", ".join(
             ["$" + key + " : " + variable_types[key] for key in variable_types.keys()]
         )
         updates_string = ", ".join(
-            [key + " : " + "$" + key for key in not_none_variables.keys()]
+            [key + " : " + "$" + key for key in query_variables.keys()]
         )
 
         args = [query_variables_string, updates_string]
 
         query = base_query.format(*args)
 
-        return (query, not_none_variables)
+        return (query, query_variables)
 
     @validate_call
     async def update_list_entry(
@@ -288,12 +366,12 @@ class GraphQLAdapter:
     @validate_call
     async def get_trending_media(self, media_type: MediaType) -> List[MediaPreview]:
         """
-        Gets top 50 trending media
+        Gets top 20 trending media
 
         @type media_type: MediaType
         @param media_type: anime or manga
         @rtype: List[dict]
-        @returns: List containing top 50 trending media
+        @returns: List containing top 20 trending media
         """
 
         media_filters = MediaFilter()
@@ -387,30 +465,6 @@ class GraphQLAdapter:
             data["genres"][i] = "_".join(genre.upper().replace("-", " ").split())
 
         self.__parse_media_list_entry__(data)
-
-        # removes fields with no value
-        q = deque([(data, key) for key in data.keys()])
-
-        while q:
-            context, key = q.popleft()
-            if type(context[key]) is dict:
-                for key_v in context[key].keys():
-                    q.append((context[key], key_v))
-            else:
-                if context[key] == None:
-                    del context[key]
-
-        # deletes remaining empty dictionaries
-        q = deque([(data, key) for key in data.keys()])
-
-        while q:
-            context, key = q.popleft()
-            if type(context[key]) is dict:
-                if len(context[key]) == 0:
-                    del context[key]
-                else:
-                    for key_v in context[key].keys():
-                        q.append((context[key], key_v))
 
         if data["type"] == "ANIME":
             return Anime(**data)

@@ -38,10 +38,10 @@ async def start():
         adapter = GraphQLAdapter(api)
 
         # try:
-        #     trending_anime = await adapter.get_trending_media(MediaType.ANIME)
-        #     trending_manga = await adapter.get_trending_media(MediaType.MANGA)
-        #     all_time_anime = await adapter.get_all_time_media(MediaType.ANIME)
-        #     all_time_manga = await adapter.get_all_time_media(MediaType.MANGA)
+        # trending_anime = await adapter.get_trending_media(MediaType.ANIME)
+        # trending_manga = await adapter.get_trending_media(MediaType.MANGA)
+        # all_time_anime = await adapter.get_all_time_media(MediaType.ANIME)
+        # all_time_manga = await adapter.get_all_time_media(MediaType.MANGA)
 
         #     for entry in trending_anime[:5]:
         #         print(entry)
@@ -68,26 +68,26 @@ async def start():
 
         # print("media_info", await seasonal_anime[0].get_info())
 
-        # media_filter = MediaFilter()
-        # media_filter["search_string"] = "re:zero"
+        media_filter = MediaFilter()
+        media_filter["search_string"] = "re:zero"
 
-        # results = (await adapter.search(media_filter))[0]
+        results = (await adapter.search(media_filter))[0]
 
-        # print("3------")
+        print("3------")
 
-        # for result in results:
-        #     print(result)
+        for result in results:
+            print(result)
 
-        # print("4-----")
+        print("4-----")
 
-        media_lists = await adapter.get_media_list(
-            "JeremyFang022",
-            MediaType.ANIME,
-            [MediaListStatus.CURRENT, MediaListStatus.COMPLETED],
-        )
+        # media_lists = await adapter.get_media_list(
+        #     "JeremyFang022",
+        #     MediaType.ANIME,
+        #     [MediaListStatus.CURRENT, MediaListStatus.COMPLETED],
+        # )
 
-        for i, li in enumerate(media_lists):
-            print(i, li)
+        # for i, li in enumerate(media_lists):
+        #     print(i, li)
 
     except Exception as e:
         print(e)

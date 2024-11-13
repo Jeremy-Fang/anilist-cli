@@ -12,9 +12,9 @@ query {
 """
 
 get_media = """
-query ({}) {{
-  Page {{
-    media({}) {{
+query ({variables}) {{
+  Page ({page_query}) {{
+    media({media_query}) {{
       id
       title {{
         english
@@ -45,8 +45,8 @@ query ({}) {{
 """
 
 get_expanded_media_info = """
-query({}) {{
-  Media({}) {{
+query({variables}) {{
+  Media({media_query}) {{
     id
     title {{
       english
@@ -195,8 +195,8 @@ mutation({}) {{
 """
 
 get_media_list = """
-query ({}) {{
-  MediaListCollection({}) {{
+query ({variables}) {{
+  MediaListCollection({media_list_query}) {{
     hasNextChunk
     lists {{
       entries {{
