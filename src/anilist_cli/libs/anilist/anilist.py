@@ -90,12 +90,7 @@ class AnilistAPI:
         data = self.cache.get(query, variables, self.user, self._v)
 
         if data:
-            print("cache hit!")
-            response = json.loads(data[3])
-
-            return response
-        else:
-            print("cache miss!")
+            return json.loads(data["data"])
 
         return None
 
