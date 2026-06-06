@@ -30,6 +30,10 @@ The SQLite cache was chosen as a learning exercise — an in-memory dict or a TT
 
 Uses `uv` for dependency management (replaces Poetry). `uv sync` auto-creates `.venv` in the project root using Python 3.13. Pyright is configured to find it via `venvPath = "."` and `venv = ".venv"` in `pyproject.toml`.
 
+## Testing
+
+Unit tests use manual mocks (inline Python dicts) rather than VCR/recorded cassettes. VCR was ruled out because stale cassettes silently pass against outdated API responses when AniList changes a response shape — catching that requires extra infrastructure (scheduled live runs) not worth adding at this stage. Integration tests are deferred until the feature set stabilizes; when added, they should use real read-only API calls with a test account token in GitHub secrets rather than cassettes.
+
 ## Known Gotchas
 
 - `_v` must be incremented in `authenticated_call` after every successful mutation — this is not yet implemented and is a known bug
