@@ -34,3 +34,4 @@ Uses `uv` for dependency management (replaces Poetry). `uv sync` auto-creates `.
 
 - `_v` must be incremented in `authenticated_call` after every successful mutation — this is not yet implemented and is a known bug
 - Private helper methods currently use `__dunder__` naming (e.g. `__check_cache__`) — these should be migrated to `_single_underscore` convention
+- `MediaListEntry.update_list_entry` calls `self.media_id` but `MediaListEntry` only inherits from `ListEntry`, not `Media`, so the field doesn't exist — needs either `media_id: int = Field(alias="mediaId")` added directly to `MediaListEntry`, or a decision to make it extend `Media` too

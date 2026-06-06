@@ -1,11 +1,10 @@
-from .media_title import MediaTitle
-
-from .list_entry_interface import ListEntry
-from .list_entry_changes import ListEntryChanges
+from typing import Any
 
 from pydantic import validate_call
 
-from typing import Any
+from .list_entry_changes import ListEntryChanges
+from .list_entry_interface import ListEntry
+from .media_title import MediaTitle
 
 
 class MediaListEntry(ListEntry):
@@ -29,10 +28,10 @@ class MediaListEntry(ListEntry):
         if key not in ListEntryChanges.keys():
             return False
 
-        if type(value) != ListEntryChanges.required_type(key):
+        if type(value) is not ListEntryChanges.required_type(key):
             return False
 
-        if self.changes == None:
+        if self.changes is None:
             self.changes = ListEntryChanges()
 
         self.changes[key] = value
@@ -48,7 +47,7 @@ class MediaListEntry(ListEntry):
         @returns: whether or not the changes were successfully pushed
         """
 
-        if self.changes == None:
+        if self.changes is None:
             return False
 
         data = await self.adapter.update_list_entry(self.media_id, self.changes)

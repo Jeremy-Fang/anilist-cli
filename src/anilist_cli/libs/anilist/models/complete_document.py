@@ -1,13 +1,11 @@
-from .list_entry_interface import ListEntry
-from .media_interface import Media
-
-from abc import abstractmethod, ABC
-
-from typing import List, Optional, Any
+from abc import abstractmethod
+from datetime import date
+from typing import Any
 
 from pydantic import Field
 
-from datetime import date
+from .list_entry_interface import ListEntry
+from .media_interface import Media
 
 
 class CompleteDocument(ListEntry, Media):
@@ -23,12 +21,12 @@ class CompleteDocument(ListEntry, Media):
     source: str | None source for the media (ex. light novel)
     """
 
-    genres: List[str]
+    genres: list[str]
     description: str
-    start_date: Optional[date] = Field(default=None, alias="startDate")
-    end_date: Optional[date] = Field(default=None, alias="endDate")
+    start_date: date | None = Field(default=None, alias="startDate")
+    end_date: date | None = Field(default=None, alias="endDate")
     favorites: int = Field(alias="favourites")
-    source: Optional[str]
+    source: str | None
 
     @abstractmethod
     def add_changes(self, key: str, value: Any) -> bool: ...

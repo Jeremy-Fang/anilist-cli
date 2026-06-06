@@ -1,14 +1,9 @@
-from .enums import MediaListStatus
-
-from typing import Optional
-
-import re
-
-from pydoc import locate
-
+import types
 from datetime import date
 
 from pydantic import BaseModel, Field
+
+from .enums import MediaListStatus
 
 
 class ListEntryChanges(BaseModel):
@@ -26,14 +21,14 @@ class ListEntryChanges(BaseModel):
     completed_at: date | None date that the media was completed
     """
 
-    status: Optional[MediaListStatus] = Field(default=None)
-    score: Optional[float] = Field(default=None)
-    progress: Optional[int] = Field(default=None)
-    progress_volumes: Optional[int] = Field(default=None, alias="progressVolumes")
-    repeat: Optional[int] = Field(default=None)
-    note: Optional[str] = Field(default=None)
-    started_at: Optional[date] = Field(default=None, alias="startedAt")
-    completed_at: Optional[date] = Field(default=None, alias="completedAt")
+    status: MediaListStatus | None = Field(default=None)
+    score: float | None = Field(default=None)
+    progress: int | None = Field(default=None)
+    progress_volumes: int | None = Field(default=None, alias="progressVolumes")
+    repeat: int | None = Field(default=None)
+    note: str | None = Field(default=None)
+    started_at: date | None = Field(default=None, alias="startedAt")
+    completed_at: date | None = Field(default=None, alias="completedAt")
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -47,11 +42,12 @@ class ListEntryChanges(BaseModel):
 
     @staticmethod
     def required_type(key: str):
-        if key not in ListEntryChanges.__dict__["__annotations__"].keys():
+        annotations = ListEntryChanges.__dict__["__annotations__"]
+        if key not in annotations:
             return ""
-
-        type_string = str(ListEntryChanges.__dict__["__annotations__"][key])
-
-        parsed_type = re.search("\[.*\]", type_string).group()[1:-1]
-
-        return locate(parsed_type)
+        annotation = annotations[key]
+        if isinstance(annotation, types.UnionType):
+            for arg in annotation.__args__:
+                if arg is not type(None):
+                    return arg
+        return annotation

@@ -26,7 +26,7 @@ def fuzzydate_to_date(fuzzy: dict) -> date | None:
     @returns: datetime.date Object represented by fuzzy
     """
     for key in ["year", "month", "day"]:
-        if key not in fuzzy or fuzzy[key] == None:
+        if key not in fuzzy or fuzzy[key] is None:
             return None
 
     return date(fuzzy["year"], fuzzy["month"], fuzzy["day"])

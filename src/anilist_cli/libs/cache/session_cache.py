@@ -1,10 +1,7 @@
-from typing import Tuple
-
-from .db import SQLiteWrapper
-
+import json
 import time
 
-import json
+from .db import SQLiteWrapper
 
 
 class SessionCache:
@@ -58,7 +55,7 @@ class SessionCache:
 
     def get(
         self, query: str, variables: dict, user: str | None, version: int
-    ) -> Tuple | None:
+    ) -> tuple | None:
         """
         Get the data from the cache for the given url and query. If the
         queried result is expired or has an invalid version number, all

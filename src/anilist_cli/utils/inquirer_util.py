@@ -1,13 +1,12 @@
-from InquirerPy import inquirer
-
-from typing import List, Optional, Any
-
 import os
 import platform
+from typing import Any
+
+from InquirerPy import inquirer
 
 
 def prompt_with_pages(
-    message: str, results: List[str], page_size: Optional[int] = 20
+    message: str, results: list[str], page_size: int = 20
 ) -> str:
     """
     Wrapper function around InquirerPy select to allow for multi-page prompts
@@ -24,7 +23,7 @@ def prompt_with_pages(
     page: int = 1
     results_length: int = len(results)
     system_platform: str = platform.system()
-    selected: Optional[str] = None
+    selected: str | None = None
 
     while selected is None or selected in ["left", "right"]:
         if system_platform == "Windows":
@@ -32,7 +31,7 @@ def prompt_with_pages(
         elif system_platform:
             os.system("clear")
 
-        prompt: Any = inquirer.select(
+        prompt: Any = inquirer.select(  # type: ignore[attr-defined]
             message=message, choices=results[(page - 1) * page_size : page * page_size]
         )
 

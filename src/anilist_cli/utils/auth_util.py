@@ -1,15 +1,14 @@
 import keyring
+from keyring.credentials import Credential
 
 
-def get_credential() -> str | None:
+def get_credential() -> Credential | None:
     """
-    Helper function which retrieves the Anilist access token if it exists
+    Helper function which retrieves the Anilist credential if it exists
 
-    @rtype: str | None
+    @rtype: Credential | None
     @returns: returns object containing Anilist username and access token if it exists
     """
-    if not keyring.get_credential("Anilist", ""):
-        return None
     return keyring.get_credential("Anilist", "")
 
 
@@ -39,7 +38,7 @@ def delete_access_token() -> bool:
     @returns: returns whether or not the deletion of the credential was successful
     """
 
-    credential: object = get_credential()
+    credential = get_credential()
 
     if not credential:
         return False

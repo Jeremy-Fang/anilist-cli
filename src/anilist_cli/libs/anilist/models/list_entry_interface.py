@@ -1,14 +1,10 @@
-from .list_entry_changes import ListEntryChanges
-
-from ..anilist import AnilistAPI
-
 from abc import ABC
-
-from typing import Optional, Any
+from datetime import date
+from typing import Any
 
 from pydantic import BaseModel, Field
 
-from datetime import date
+from .list_entry_changes import ListEntryChanges
 
 
 class ListEntry(ABC, BaseModel):
@@ -25,11 +21,11 @@ class ListEntry(ABC, BaseModel):
     """
 
     adapter: Any
-    list_entry_status: Optional[str] = Field(default=None)
-    progress: Optional[int] = Field(default=None)
-    repeat: Optional[int] = Field(default=None)
-    score: Optional[float] = Field(default=None)
-    notes: Optional[str] = Field(default=None)
-    started_at: Optional[date] = Field(default=None, alias="startedAt")
-    completed_at: Optional[date] = Field(default=None, alias="completedAt")
-    changes: Optional[ListEntryChanges] = Field(default=None)
+    list_entry_status: str | None = Field(default=None)
+    progress: int | None = Field(default=None)
+    repeat: int | None = Field(default=None)
+    score: float | None = Field(default=None)
+    notes: str | None = Field(default=None)
+    started_at: date | None = Field(default=None, alias="startedAt")
+    completed_at: date | None = Field(default=None, alias="completedAt")
+    changes: ListEntryChanges | None = Field(default=None)

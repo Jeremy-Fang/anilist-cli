@@ -1,15 +1,26 @@
-from pydantic import validate_call
 import json
+from collections.abc import Callable
+from typing import Any
+
 import aiohttp
-from enum import Enum
-
-from typing import List, Tuple
-
-from .queries import get_user
+from pydantic import validate_call
 
 from ..cache.session_cache import SessionCache
+from .queries import get_user
 
 ANILIST_URL = "https://graphql.anilist.co"
+
+
+def _check_cache_(func: Callable) -> Callable:
+    async def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        data = self.__check_cache__(*args, **kwargs)
+
+        if data:
+            return data
+
+        return await func(self, *args)
+
+    return wrapper
 
 
 class AnilistAPI:
@@ -64,7 +75,7 @@ class AnilistAPI:
 
             return data["data"]["Viewer"]
 
-    def __check_cache__(self, query: str, variables: dict) -> List[dict] | None:
+    def __check_cache__(self, query: str, variables: dict) -> dict | None:
         """
         Helper function that checks if the request is already in cache
 
@@ -72,7 +83,7 @@ class AnilistAPI:
         @type variables: dict
         @param query: graphQL query
         @param variables: variables for graphQL query
-        @rtype: List[dict] | None
+        @rtype: dict | None
         @returns: None if the cache missed, and the parsed response data if cache hit
         """
 
@@ -88,29 +99,18 @@ class AnilistAPI:
 
         return None
 
-    def _check_cache_(func):
-        async def wrapper(self, *args, **kwargs):
-            data = self.__check_cache__(*args, **kwargs)
-
-            if data:
-                return data
-
-            return await func(self, *args)
-
-        return wrapper
-
     @_check_cache_
     @validate_call
-    async def get_data(self, query: str, variables: dict) -> List[dict]:
+    async def get_data(self, query: str, variables: dict) -> dict | None:
         """
-        Abstraction around get queries, returning the first 50 entries
+        Abstraction around get queries
 
         @type query: str
         @type variables: dict
         @param query: graphQL query request
         @param variables: key-value variables for the query
-        @rtype: List[dict]
-        @returns: List containing top 50 results matching query and variables
+        @rtype: dict | None
+        @returns: full response dict from the AniList API
         """
 
         async with self._session.post(
@@ -136,7 +136,7 @@ class AnilistAPI:
         @type variables: dict
         @param mutation: graphQL mutation request
         @param variables: key-value variables for the mutation
-        @rtype: List[dict]
+        @rtype: dict | None
         @returns: dictionary containing updated data
         """
 
