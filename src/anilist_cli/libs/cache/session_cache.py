@@ -14,6 +14,7 @@ class SessionCache:
 
     Attributes:
     db_path: str path to db disk file
+    db: SQLiteWrapper connection to local db
     ttl: int time to live for database entry in milliseconds
     """
 

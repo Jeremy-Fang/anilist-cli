@@ -1,21 +1,9 @@
 from InquirerPy import inquirer
 
-from typing import List
-from typing import Optional
-from typing import Any
+from typing import List, Optional, Any
 
 import os
 import platform
-
-all_choices: List[str] = [
-    "Java",
-    "C",
-    "C++",
-    "Javascript",
-    "Python",
-    "Typescript",
-    "Ruby",
-]
 
 
 def prompt_with_pages(
@@ -35,21 +23,18 @@ def prompt_with_pages(
     """
     page: int = 1
     results_length: int = len(results)
-
     system_platform: str = platform.system()
-
-    prompt: Any = inquirer.select(
-        message=message, choices=results[(page - 1) * page_size : page * page_size]
-    )
-
     selected: Optional[str] = None
 
     while selected is None or selected in ["left", "right"]:
-        if system_platform != "":
-            if system_platform == "Windows":
-                os.system("cls")
-            else:
-                os.system("clear")
+        if system_platform == "Windows":
+            os.system("cls")
+        elif system_platform:
+            os.system("clear")
+
+        prompt: Any = inquirer.select(
+            message=message, choices=results[(page - 1) * page_size : page * page_size]
+        )
 
         @prompt.register_kb("left")
         def _get_prev_page(event):
@@ -65,13 +50,7 @@ def prompt_with_pages(
 
         if selected == "left":
             page -= 1
-
-        if selected == "right":
+        elif selected == "right":
             page += 1
-
-        prompt = inquirer.select(
-            message=message,
-            choices=results[(page - 1) * page_size : page * page_size],
-        )
 
     return selected
