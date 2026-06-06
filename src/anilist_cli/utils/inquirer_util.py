@@ -20,6 +20,9 @@ def prompt_with_pages(
     @rtype: str
     @return: string of selected choice
     """
+    if not results:
+        raise ValueError("results must be non-empty")
+
     page: int = 1
     results_length: int = len(results)
     system_platform: str = platform.system()
@@ -28,13 +31,16 @@ def prompt_with_pages(
     while selected is None or selected in ["left", "right"]:
         if system_platform == "Windows":
             os.system("cls")
-        elif system_platform:
+        else:
             os.system("clear")
 
         prompt: Any = inquirer.select(  # type: ignore[attr-defined]
             message=message, choices=results[(page - 1) * page_size : page * page_size]
         )
 
+        # `page` is captured by reference, but prompt.execute() is synchronous so
+        # `page` cannot change while these handlers are active. Each iteration creates
+        # a new prompt object, discarding the previous one and its handlers.
         @prompt.register_kb("left")
         def _get_prev_page(event):
             if page > 1:
