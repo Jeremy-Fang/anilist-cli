@@ -1,6 +1,6 @@
-from .enums import *
+from .enums import MediaFormat, MediaListStatus, MediaSeason, MediaSort, MediaStatus, MediaType
 
-from typing import List, Optional, Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 

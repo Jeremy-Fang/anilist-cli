@@ -3,12 +3,9 @@ import json
 import aiohttp
 from enum import Enum
 
-from .models.filter import *
-from .models.enums import *
-
 from typing import List, Tuple
 
-from .queries import *
+from .queries import get_user
 
 from ..cache.session_cache import SessionCache
 
@@ -143,7 +140,7 @@ class AnilistAPI:
         @returns: dictionary containing updated data
         """
 
-        if self.token == None:
+        if self.token is None:
             return None
 
         async with self._session.post(

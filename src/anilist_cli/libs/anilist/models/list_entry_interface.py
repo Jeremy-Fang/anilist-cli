@@ -1,4 +1,3 @@
-from .enums import *
 from .list_entry_changes import ListEntryChanges
 
 from ..anilist import AnilistAPI
