@@ -1,31 +1,27 @@
 from pydantic import validate_call
-
-from .models.media_filter import MediaFilter
-from .models.media_type import MediaType
-from .models.media_sort import MediaSort
-from .models.media_status import MediaStatus
-
-from typing import List
-
-from .queries import *
-
-from ..cache.session_cache import SessionCache
-
 import json
 import aiohttp
+from enum import Enum
+
+from typing import List, Tuple
+
+from .queries import get_user
+
+from ..cache.session_cache import SessionCache
 
 ANILIST_URL = "https://graphql.anilist.co"
 
 
 class AnilistAPI:
     """
-    Facade providing simple interface to access the anilist api, while also
-    incorporating caching
+    API class encapsulating the anilist API functionality
 
     Attributes:
     token: str anilist user access token
+    user: str anilist user name
     _session: aiohttp client session used to make API requests
-    _cache: session cache to store API request responses
+    headers: headers to be sent with API requests
+    cache: session cache to store API request responses
     _v: int denoting the number of anilist mutations made this session
     """
 
@@ -68,37 +64,53 @@ class AnilistAPI:
 
             return data["data"]["Viewer"]
 
-    def _check_cache(func):
+    def __check_cache__(self, query: str, variables: dict) -> List[dict] | None:
         """
-        Decorator to check if the function response has been cached
-        """
-
-        async def wrapper(self, *args, **kwargs):
-            data = self.cache.get(args[0], args[1], self.user, self._v)
-
-            if data:
-                print("cache hit!")
-                response = json.loads(data[3])
-
-                return response["data"]["Page"]["media"]
-            else:
-                print("cache miss!")
-                return await func(self, *args, **kwargs)
-
-        return wrapper
-
-    @validate_call
-    @_check_cache
-    async def search_media(self, query: str, variables: dict = {}) -> List[dict]:
-        """
-        Abstraction around media search queries, returning the first 50 entires
+        Helper function that checks if the request is already in cache
 
         @type query: str
         @type variables: dict
-        @param query: graphQL query to anilist API
-        @param variables: graphQL variables
+        @param query: graphQL query
+        @param variables: variables for graphQL query
+        @rtype: List[dict] | None
+        @returns: None if the cache missed, and the parsed response data if cache hit
+        """
+
+        data = self.cache.get(query, variables, self.user, self._v)
+
+        if data:
+            print("cache hit!")
+            response = json.loads(data[3])
+
+            return response
+        else:
+            print("cache miss!")
+
+        return None
+
+    def _check_cache_(func):
+        async def wrapper(self, *args, **kwargs):
+            data = self.__check_cache__(*args, **kwargs)
+
+            if data:
+                return data
+
+            return await func(self, *args)
+
+        return wrapper
+
+    @_check_cache_
+    @validate_call
+    async def get_data(self, query: str, variables: dict) -> List[dict]:
+        """
+        Abstraction around get queries, returning the first 50 entries
+
+        @type query: str
+        @type variables: dict
+        @param query: graphQL query request
+        @param variables: key-value variables for the query
         @rtype: List[dict]
-        @returns: dictionary containing top 50 results matching query and variables
+        @returns: List containing top 50 results matching query and variables
         """
 
         async with self._session.post(
@@ -113,68 +125,35 @@ class AnilistAPI:
 
             self.cache.set(query, variables, self.user, data, self._v)
 
-            return data["data"]["Page"]["media"]
+            return data
 
     @validate_call
-    async def get_trending_media(self, media_type: MediaType) -> List[dict]:
+    async def authenticated_call(self, mutation: str, variables: dict) -> dict | None:
         """
-        Gets top 50 trending media
+        Abstraction around list entry mutations
 
-        @type media_type: MediaType
-        @param media_type: anime or manga
+        @type query: str
+        @type variables: dict
+        @param mutation: graphQL mutation request
+        @param variables: key-value variables for the mutation
         @rtype: List[dict]
-        @returns: dictionary containing top 50 trending media
+        @returns: dictionary containing updated data
         """
 
-        media_filters = MediaFilter()
+        if self.token is None:
+            return None
 
-        media_filters["media_type"] = media_type
-        media_filters["sort"] = [MediaSort.TRENDING_DESC, MediaSort.FAVOURITES_DESC]
+        async with self._session.post(
+            ANILIST_URL,
+            json={"query": mutation, "variables": variables},
+            headers=self.headers,
+        ) as response:
+            data = await response.json()
 
-        query_variables = {}
-        media_filter_variables = {}
+            if response.status != 200:
+                return None
 
-        for key in media_filters.keys():
-            if type(media_filters[key]) is list:
-                media_filter_variables[key] = []
-                query_variables[key] = "[" + type(media_filters[key][0]).__name__ + "]"
-                for entry in media_filters[key]:
-                    media_filter_variables[key].append(entry.name)
-            else:
-                query_variables[key] = type(media_filters[key]).__name__
-                media_filter_variables[key] = media_filters[key].name
-
-        print(query_variables)
-        print(media_filter_variables)
-        # return await self.search_media(get_sorted_media, variables)
-
-        return []
-
-    @validate_call
-    async def get_all_time_media(self, media_type: MediaType) -> List[dict]:
-        """
-        Gets top 50 all time media
-
-        @type media_type: MediaType
-        @param media_type: anime or manga
-        @rtype: List[dict]
-        @returns: dictionary containing top 50 all time media
-        """
-
-        variables = {"type": media_type.name, "sort": MediaSort.POPULARITY_DESC.name}
-
-        return await self.search_media(get_sorted_media, variables)
-
-    @validate_call
-    async def get_seasonal_media(self, media_type: MediaType) -> List[dict]:
-
-        variables = {
-            "type": media_type.name,
-            "sort": MediaSort.TRENDING_DESC.name,
-            "status": MediaStatus.RELEASING.name,
-        }
-
-        return await self.search_media(get_seasonal_media, variables)
+            return data
 
     async def close(self) -> None:
         """
