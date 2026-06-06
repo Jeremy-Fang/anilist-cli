@@ -9,7 +9,7 @@ def get_credential() -> Credential | None:
     @rtype: Credential | None
     @returns: returns object containing Anilist username and access token if it exists
     """
-    return keyring.get_credential("Anilist", "")
+    return keyring.get_credential("Anilist", None)
 
 
 def set_access_token(username: str, token: str) -> bool:
