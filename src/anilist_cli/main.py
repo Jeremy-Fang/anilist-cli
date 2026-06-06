@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from .libs.anilist.anilist import AnilistAPI
+from .libs.anilist.anilist import AnilistClient
 from .libs.anilist.graphql_adapter import GraphQLAdapter
 from .libs.anilist.models.filter import MediaFilter
 
@@ -10,13 +10,13 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(
     filename="logs.log",
     level=logging.INFO,
-    filemode="w",
-    format="%(asctime)s : %(levelname)s : %(message)s",
+    filemode="a",
+    format="%(asctime)s : %(name)s : %(levelname)s : %(message)s",
 )
 
 
 async def start():
-    api = AnilistAPI()
+    api = AnilistClient()
 
     try:
         # user = await api.login(ACCESS_TOKEN)

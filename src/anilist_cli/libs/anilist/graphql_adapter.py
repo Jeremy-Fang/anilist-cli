@@ -5,7 +5,7 @@ from enum import Enum
 from pydantic import validate_call
 
 from ...utils.common import date_to_fuzzydate, fuzzydate_to_date
-from .anilist import AnilistAPI
+from .anilist import AnilistClient
 from .models.anime import Anime
 from .models.anime_preview import AnimePreview
 from .models.complete_document import CompleteDocument
@@ -30,12 +30,12 @@ class GraphQLAdapter:
     Adapter to turn graphQL response data into usable class instances
 
     Attributes:
-    api: AnilistAPI instance of api class
+    api: AnilistClient instance of api class
     """
 
-    def __init__(self, api: AnilistAPI):
+    def __init__(self, api: AnilistClient):
         """
-        Initialize the adapter with an AnilistAPI instance to wrap
+        Initialize the adapter with an AnilistClient instance to wrap
         """
         self.api = api
 
