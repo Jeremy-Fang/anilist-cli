@@ -1,12 +1,6 @@
-import asyncio
 import logging
 
-from .libs.anilist.adapter import AnilistAdapter
-from .libs.anilist.client import AnilistClient
-from .libs.anilist.models.filter import MediaFilter
-from .libs.anilist.service import AnilistService
-
-logger = logging.getLogger(__name__)
+from anilist_cli.ui.app import AnilistApp
 
 logging.basicConfig(
     filename="logs.log",
@@ -16,34 +10,8 @@ logging.basicConfig(
 )
 
 
-async def start():
-    client = AnilistClient()
-
-    try:
-        adapter = AnilistAdapter(client)
-        service = AnilistService(adapter)
-
-        media_filter = MediaFilter()
-        media_filter["search_string"] = "re:zero"
-
-        results = (await service.search(media_filter))[0]
-
-        print("3------")
-
-        for result in results:
-            print(result)
-
-        print("4-----")
-
-    except Exception as e:
-        print(e)
-        logger.error(e)
-
-    await client.close()
-
-
-def main():
-    asyncio.run(start())
+def main() -> None:
+    AnilistApp().run()
 
 
 if __name__ == "__main__":
