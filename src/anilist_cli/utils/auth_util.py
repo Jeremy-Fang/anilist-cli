@@ -25,7 +25,7 @@ def set_access_token(username: str, token: str) -> bool:
     return True
 
 
-async def perform_oauth_flow() -> str:
+async def perform_oauth_flow() -> tuple[str, str]:
     client_secret = os.getenv("ANILIST_CLIENT_SECRET")
     if client_secret is None:
         raise RuntimeError("ANILIST_CLIENT_SECRET not set in .env")
@@ -69,7 +69,7 @@ async def perform_oauth_flow() -> str:
             username: str = viewer_data["data"]["Viewer"]["name"]
 
     set_access_token(username, access_token)
-    return username
+    return username, access_token
 
 
 def delete_access_token() -> bool:
