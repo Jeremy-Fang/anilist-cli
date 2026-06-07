@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import validate_call
+from pydantic import Field, validate_call
 
 from .list_entry_changes import ListEntryChanges
 from .list_entry_interface import ListEntry
@@ -9,6 +9,7 @@ from .media_title import MediaTitle
 
 class MediaListEntry(ListEntry):
     id: int
+    media_id: int = Field(alias="mediaId")
     title: MediaTitle
 
     @validate_call

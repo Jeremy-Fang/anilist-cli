@@ -8,6 +8,7 @@ query GetMediaList(
     lists {
       entries {
         id
+        mediaId
         media {
           title {
             english
