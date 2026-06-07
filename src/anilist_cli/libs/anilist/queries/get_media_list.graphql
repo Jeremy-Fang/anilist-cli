@@ -1,0 +1,36 @@
+query GetMediaList(
+  $userName: String
+  $type: MediaType
+  $status_in: [MediaListStatus]
+) {
+  MediaListCollection(userName: $userName, type: $type, status_in: $status_in) {
+    hasNextChunk
+    lists {
+      entries {
+        id
+        media {
+          title {
+            english
+            romaji
+          }
+        }
+        startedAt {
+          day
+          month
+          year
+        }
+        score
+        repeat
+        progress
+        notes
+        completedAt {
+          day
+          month
+          year
+        }
+      }
+      name
+      status
+    }
+  }
+}
