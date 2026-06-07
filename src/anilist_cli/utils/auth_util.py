@@ -1,48 +1,83 @@
+import os
+
+import aiohttp
 import keyring
+from dotenv import load_dotenv
 from keyring.credentials import Credential
+
+from anilist_cli.utils import web_util
+
+load_dotenv()
+
+KEYRING_SERVICE = "Anilist"
+CLIENT_ID = 21872
+PORT = 8765
+CALLBACK_PATH = "/callback"
+REDIRECT_URI = f"http://localhost:{PORT}{CALLBACK_PATH}"
 
 
 def get_credential() -> Credential | None:
-    """
-    Helper function which retrieves the Anilist credential if it exists
-
-    @rtype: Credential | None
-    @returns: returns object containing Anilist username and access token if it exists
-    """
-    return keyring.get_credential("Anilist", None)
+    return keyring.get_credential(KEYRING_SERVICE, None)
 
 
 def set_access_token(username: str, token: str) -> bool:
-    """
-    Helper function which sets the Anilist access token in credential manager
-
-    @type username: str
-    @type token: str
-    @param username: Anilist username corresponding to the access token
-    @param token: Anilist access token to authorize mutation API requests
-    @rtype: bool
-    @returns: returns whether or not the saving was successful
-    """
-
-    keyring.set_password("Anilist", username, token)
-
+    keyring.set_password(KEYRING_SERVICE, username, token)
     return True
 
 
+async def perform_oauth_flow() -> str:
+    client_secret = os.getenv("ANILIST_CLIENT_SECRET")
+    if client_secret is None:
+        raise RuntimeError("ANILIST_CLIENT_SECRET not set in .env")
+
+    auth_url = (
+        f"https://anilist.co/api/v2/oauth/authorize"
+        f"?client_id={CLIENT_ID}"
+        f"&response_type=code"
+        f"&redirect_uri={REDIRECT_URI}"
+    )
+    web_util.open_browser(auth_url)
+
+    auth_code = await web_util.run_callback_server(PORT, path=CALLBACK_PATH)
+    if auth_code is None:
+        raise RuntimeError("OAuth callback did not return an auth code")
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            "https://anilist.co/api/v2/oauth/token",
+            json={
+                "grant_type": "authorization_code",
+                "client_id": CLIENT_ID,
+                "client_secret": client_secret,
+                "redirect_uri": REDIRECT_URI,
+                "code": auth_code,
+            },
+        ) as resp:
+            if resp.status != 200:
+                raise RuntimeError(f"Token exchange failed: HTTP {resp.status}")
+            token_data = await resp.json()
+            access_token: str = token_data["access_token"]
+
+        async with session.post(
+            "https://graphql.anilist.co",
+            json={"query": "{ Viewer { name } }"},
+            headers={"Authorization": f"Bearer {access_token}"},
+        ) as resp:
+            if resp.status != 200:
+                raise RuntimeError(f"Viewer query failed: HTTP {resp.status}")
+            viewer_data = await resp.json()
+            username: str = viewer_data["data"]["Viewer"]["name"]
+
+    set_access_token(username, access_token)
+    return username
+
+
 def delete_access_token() -> bool:
-    """
-    Helper function which deletes the Anilist access token from the credential manager
-    if it exists
-
-    @rtype: bool
-    @returns: returns whether or not the deletion of the credential was successful
-    """
-
     credential = get_credential()
 
     if not credential:
         return False
 
-    keyring.delete_password("Anilist", credential.username)
+    keyring.delete_password(KEYRING_SERVICE, credential.username)
 
     return True
