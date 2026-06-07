@@ -1,10 +1,8 @@
-from .media_title import MediaTitle
-
 from abc import ABC
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
+
+from .media_title import MediaTitle
 
 
 class Media(ABC, BaseModel):
@@ -26,11 +24,11 @@ class Media(ABC, BaseModel):
 
     media_id: int = Field(alias="id")
     media_title: MediaTitle = Field(alias="title")
-    media_status: Optional[str] = Field(default=None, alias="status")
-    popularity: int = Field(default=None)
-    average_score: Optional[float] = Field(default=None, alias="averageScore")
-    media_format: Optional[str] = Field(default=None, alias="format")
-    media_type: Optional[str] = Field(default=None, alias="type")
-    episodes: Optional[int] = Field(default=None)
-    chapters: Optional[int] = Field(default=None)
-    volumes: Optional[int] = Field(default=None)
+    media_status: str | None = Field(default=None, alias="status")
+    popularity: int | None = Field(default=None)
+    average_score: float | None = Field(default=None, alias="averageScore")
+    media_format: str | None = Field(default=None, alias="format")
+    media_type: str | None = Field(default=None, alias="type")
+    episodes: int | None = Field(default=None)
+    chapters: int | None = Field(default=None)
+    volumes: int | None = Field(default=None)

@@ -22,16 +22,17 @@ class SQLiteWrapper:
         @param db_path: path to db disk file
         """
         self.db_path = db_path
-        self.connection = sqlite3.connect(self.db_path)
-        self.connection.execute("PRAGMA journal_mode=WAL;")
-        self.connection.close()
-        self.connection = None
+        self.connection: sqlite3.Connection | None = None
+        conn = sqlite3.connect(self.db_path)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.close()
 
     def __enter__(self):
         """
         Open the connection to the db
         """
         self.connection = sqlite3.connect(self.db_path)
+        self.connection.row_factory = sqlite3.Row
 
         return self.connection
 
@@ -40,6 +41,7 @@ class SQLiteWrapper:
         Close the connection to the db if it exists
         """
         if self.connection:
-            self.connection.commit()
+            if exc_type is None:
+                self.connection.commit()
             self.connection.close()
             self.connection = None

@@ -1,11 +1,9 @@
-from .complete_document import CompleteDocument
-from .list_entry_changes import ListEntryChanges
-
-from typing import Optional, Any
+from typing import Any
 
 from pydantic import Field, validate_call
 
-from ....utils.common import fuzzydate_to_date
+from .complete_document import CompleteDocument
+from .list_entry_changes import ListEntryChanges
 
 
 class Anime(CompleteDocument):
@@ -18,9 +16,9 @@ class Anime(CompleteDocument):
     season_year: int | None year which the media will air
     """
 
-    duration: Optional[int] = Field(default=None)
-    season: Optional[str] = Field(default=None)
-    season_year: Optional[int] = Field(alias="seasonYear")
+    duration: int | None = Field(default=None)
+    season: str | None = Field(default=None)
+    season_year: int | None = Field(alias="seasonYear")
 
     @validate_call
     def add_changes(self, key: str, value: Any) -> bool:
@@ -39,10 +37,10 @@ class Anime(CompleteDocument):
         if key not in ListEntryChanges.keys():
             return False
 
-        if type(value) != ListEntryChanges.required_type(key):
+        if type(value) is not ListEntryChanges.required_type(key):
             return False
 
-        if self.changes == None:
+        if self.changes is None:
             self.changes = ListEntryChanges()
 
         self.changes[key] = value
@@ -58,7 +56,7 @@ class Anime(CompleteDocument):
         @returns: whether or not the changes were successfully pushed
         """
 
-        if self.changes == None:
+        if self.changes is None:
             return False
 
         data = await self.adapter.update_list_entry(self.media_id, self.changes)

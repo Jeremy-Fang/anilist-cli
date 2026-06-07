@@ -1,10 +1,9 @@
-from typing import Tuple
+import json
+import sqlite3
+import time
+from typing import Any
 
 from .db import SQLiteWrapper
-
-import time
-
-import json
 
 
 class SessionCache:
@@ -33,9 +32,9 @@ class SessionCache:
         self.db_path = db_path
         self.db = SQLiteWrapper(self.db_path)
         self.time_to_live = ttl
-        self.__create_cache_table()
+        self._create_cache_table()
 
-    def __create_cache_table(self) -> None:
+    def _create_cache_table(self) -> None:
         """
         Private function to create the cache table if it doesn't exist
         """
@@ -43,22 +42,21 @@ class SessionCache:
         with self.db as conn:
             cursor = conn.cursor()
             query = """
-        CREATE TABLE IF NOT EXISTS cache (
-          query TEXT,
-          variables TEXT,
-          user TEXT DEFAULT '',
-          data BLOB,
-          expiry_time INTEGER,
-          version INTEGER,
-          PRIMARY KEY (query, variables, user)
-        )
-      """
-
+CREATE TABLE IF NOT EXISTS cache (
+  query TEXT,
+  variables TEXT,
+  user TEXT DEFAULT '',
+  data BLOB,
+  expiry_time INTEGER,
+  version INTEGER,
+  PRIMARY KEY (query, variables, user)
+)
+"""
             cursor.execute(query)
 
     def get(
         self, query: str, variables: dict, user: str | None, version: int
-    ) -> Tuple | None:
+    ) -> sqlite3.Row | None:
         """
         Get the data from the cache for the given url and query. If the
         queried result is expired or has an invalid version number, all
@@ -72,18 +70,20 @@ class SessionCache:
         @param variables: dictionary containing graphQL variables
         @param user: username of logged in user (or None)
         @param version: number denoting version since last data mutation
-        @rtype: Tuple | None
-        @returns: the data if it exists, otherwise None
+        @rtype: sqlite3.Row | None
+        @returns: the cached row if it exists and is fresh, otherwise None.
+        Side effect: if the matched entry is stale (expired or wrong version),
+        all expired and version-mismatched entries are deleted before returning
+        None. This is intentional lazy eviction — stale data is never returned
+        to the caller.
         """
 
         with self.db as conn:
             cursor = conn.cursor()
             sql_query = """
-        SELECT * FROM cache WHERE
-          query = ? AND
-          variables = ? AND
-          user = ?
-      """
+SELECT query, variables, user, data, expiry_time, version FROM cache
+WHERE query = ? AND variables = ? AND user = ?
+"""
 
             cursor.execute(
                 sql_query, (query, json.dumps(variables), user if user else "")
@@ -92,20 +92,18 @@ class SessionCache:
             result = cursor.fetchone()
 
             if result:
-                expired = round(time.time() * 1000) > result[4]
-                unmatching_version = result[5] != version
+                expired = round(time.time() * 1000) > result["expiry_time"]
+                unmatching_version = result["version"] != version
                 if expired or unmatching_version:
                     delete_query = """
-            DELETE FROM cache WHERE
-              expiry_time <= ? OR 
-              version != ?
-          """
+DELETE FROM cache WHERE expiry_time <= ? OR version != ?
+"""
                     cursor.execute(delete_query, (round(time.time() * 1000), version))
                 else:
                     return result
 
     def set(
-        self, query: str, variables: dict, user: str | None, data: str, version: int
+        self, query: str, variables: dict, user: str | None, data: Any, version: int
     ) -> bool:
         """
         Set the data in the cache for the given url and query if it does not
@@ -114,12 +112,12 @@ class SessionCache:
         @type query: str
         @type variables: dict
         @type user: str | None
-        @type data: str
+        @type data: Any
         @type version: int
         @param query: fetch request graphQL query
         @param variables: dictionary containing graphQL variables
         @param user: username of logged in user (or None)
-        @param data: data to be cached
+        @param data: JSON-serializable data to be cached
         @param version: number denoting version since last data mutation
         @rtype: bool
         @returns: True if the data was set, False if the data already exists
@@ -131,8 +129,9 @@ class SessionCache:
         with self.db as conn:
             cursor = conn.cursor()
             sql_query = """
-        INSERT INTO cache VALUES (?, ?, ?, ?, ?, ?)
-      """
+INSERT INTO cache (query, variables, user, data, expiry_time, version)
+VALUES (?, ?, ?, ?, ?, ?)
+"""
             expiry_time = round(time.time() * 1000) + self.time_to_live
 
             cursor.execute(

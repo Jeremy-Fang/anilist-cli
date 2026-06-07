@@ -1,34 +1,23 @@
-from .anilist import AnilistAPI
-
-from ...utils.common import date_to_fuzzydate, fuzzydate_to_date
-
+import re
+from datetime import date
 from enum import Enum
 
-from .models.filter import MediaFilter, MediaListFilter, PageFilter
-from .models.enums import MediaListStatus, MediaSort, MediaStatus, MediaType
-from .models.media_title import MediaTitle
-
-from .models.media_preview import MediaPreview
-from .models.anime_preview import AnimePreview
-from .models.manga_preview import MangaPreview
-from .models.anime import Anime
-from .models.manga import Manga
-
-from .models.complete_document import CompleteDocument
-from .models.list_entry_changes import ListEntryChanges
-
-from .models.media_list_entry import MediaListEntry
-
-from typing import List, Tuple, Union, Optional
-
-from datetime import date
-
-from .queries import get_expanded_media_info, get_media, get_media_list, update_entry
-
-from collections import deque
-import re
-
 from pydantic import validate_call
+
+from ...utils.common import date_to_fuzzydate, fuzzydate_to_date
+from .anilist import AnilistClient
+from .models.anime import Anime
+from .models.anime_preview import AnimePreview
+from .models.complete_document import CompleteDocument
+from .models.enums import MediaListStatus, MediaSort, MediaStatus, MediaType
+from .models.filter import MediaFilter, MediaListFilter, PageFilter
+from .models.list_entry_changes import ListEntryChanges
+from .models.manga import Manga
+from .models.manga_preview import MangaPreview
+from .models.media_list_entry import MediaListEntry
+from .models.media_preview import MediaPreview
+from .models.media_title import MediaTitle
+from .queries import get_expanded_media_info, get_media, get_media_list, update_entry
 
 basic_type_map = {"str": "String", "int": "Int", "float": "Float", "bool": "Boolean"}
 
@@ -41,20 +30,19 @@ class GraphQLAdapter:
     Adapter to turn graphQL response data into usable class instances
 
     Attributes:
-    api: AnilistAPI instance of api class
+    api: AnilistClient instance of api class
     """
 
-    def __init__(self, api: AnilistAPI):
+    def __init__(self, api: AnilistClient):
         """
-        Initialize the adapter with an AnilistAPI instance to wrap
+        Initialize the adapter with an AnilistClient instance to wrap
         """
         self.api = api
 
-    def __create_var_type_map__(self, variables: List[dict]) -> dict:
+    def __create_var_type_map__(self, variables: list[dict]) -> dict:
         """
-        Helper function that flattens a list of dictionaries containing variable names to
-        their types (ex. for the key-value pair "score": 80.4, the entry "score": "Float" is made
-        in the result). Overlapping keys from different dicts is not allowed.
+        Flattens a list of variable dicts into a single name-to-GraphQL-type map.
+        E.g., score=80.4 maps to "score": "Float". Overlapping keys not allowed.
         """
         res = {}
 
@@ -63,6 +51,8 @@ class GraphQLAdapter:
                 continue
             for key in d.keys():
                 if type(d[key]) is list:
+                    if not d[key]:
+                        continue
                     if issubclass(type(d[key][0]), Enum):
                         res[key] = "[" + type(d[key][0]).__name__ + "]"
                     else:
@@ -85,6 +75,8 @@ class GraphQLAdapter:
 
         for key in d.keys():
             if type(d[key]) is list:
+                if not d[key]:
+                    continue
                 if issubclass(type(d[key][0]), Enum):
                     val = []
                     for entry in d[key]:
@@ -113,7 +105,7 @@ class GraphQLAdapter:
         Helper function that flattens a media list entry in a dictionary
         """
 
-        if "mediaListEntry" not in d or d["mediaListEntry"] == None:
+        if "mediaListEntry" not in d or d["mediaListEntry"] is None:
             return
 
         media_list_entry = d["mediaListEntry"]
@@ -133,7 +125,7 @@ class GraphQLAdapter:
         query: str,
         media_type: MediaType = MediaType.ANIME,
         logged_in: bool = False,
-    ):
+    ) -> str:
         """
         Helper function that removes properties from the base query that are guarenteed
         to be empty
@@ -159,32 +151,23 @@ class GraphQLAdapter:
 
         return res
 
-    def __format_query__(self, query: str, format_strings: dict):
+    def __format_query__(self, query: str, format_strings: dict) -> str:
         """
         Function which replaces variables in a format string with matching values
         in the format_strings dict
         """
 
         format_placeholders = [s[2:-2] for s in re.findall(r"\(\{.*\}\)", query)]
-
-        # remove format strings which are not one of the placeholders
-        for key in list(format_strings.keys()):
-            if key not in format_placeholders:
-                del format_strings[key]
-
-        for item in format_placeholders:
-            if item not in format_strings:
-                format_strings[item] = ""
-
-        return query.format(**format_strings)
+        resolved = {p: format_strings.get(p, "") for p in format_placeholders}
+        return query.format(**resolved)
 
     @validate_call
     def __filter_to_graphql__(
         self,
         base_query: str,
-        filter: Union[MediaFilter, MediaListFilter],
-        page_filter: Optional[PageFilter] = None,
-    ) -> Tuple:
+        filter: MediaFilter | MediaListFilter,
+        page_filter: PageFilter | None = None,
+    ) -> tuple:
         """
         Adapter function that takes a base graphql string with variables,
         converts the filter into graphQL format, and replaces them
@@ -201,13 +184,15 @@ class GraphQLAdapter:
 
         # removes properties from base query that are guarenteed to be empty
         base_query = self.__clean_query__(
-            base_query, filter["media_type"], self.api.user
+            base_query, filter["media_type"], self.api.user is not None
         )
 
         variables = filter.model_dump(by_alias=True)
-        page_variables = page_filter.model_dump(by_alias=True) if page_filter else None
+        page_variables = page_filter.model_dump(by_alias=True) if page_filter else {}
 
-        query_variables = {key: value for (key, value) in variables.items() if value}
+        query_variables = {
+            key: value for (key, value) in variables.items() if value is not None
+        }
 
         variable_types = self.__create_var_type_map__([page_variables, query_variables])
 
@@ -247,7 +232,7 @@ class GraphQLAdapter:
         self,
         filters: MediaFilter,
         page_filter: PageFilter = PageFilter(perPage=20),
-    ) -> Tuple:
+    ) -> tuple:
         """
         Function that queries anilist API for media filtered by filters
 
@@ -264,11 +249,14 @@ class GraphQLAdapter:
             *self.__filter_to_graphql__(get_media, filters, page_filter)
         )
 
+        if data is None:
+            return ([], {})
+
         results_info = data["data"]["Page"]["pageInfo"]
         data = data["data"]["Page"]["media"]
 
         # cleans data
-        for i, entry in enumerate(data):
+        for entry in data:
             entry["adapter"] = self
             entry["title"] = MediaTitle(**entry["title"])
 
@@ -287,7 +275,7 @@ class GraphQLAdapter:
     @validate_call
     def __changes_to_graphql__(
         self, base_query: str, media_id: int, changes: ListEntryChanges
-    ) -> Tuple:
+    ) -> tuple:
         """
         Adapter function that takes a base graphql string with variables,
         converts the changes into graphQL format, and replaces them
@@ -302,11 +290,13 @@ class GraphQLAdapter:
         """
 
         variables = changes.model_dump(by_alias=True)
-        query_variables = {key: value for (key, value) in variables.items() if value}
+        query_variables = {
+            key: value for (key, value) in variables.items() if value is not None
+        }
 
         query_variables["mediaId"] = media_id
 
-        variable_types = self.__create_var_type_map__(query_variables)
+        variable_types = self.__create_var_type_map__([query_variables])
 
         self.__dict_enums_to_strs__(query_variables)
         self.__dict_dates_to_fuzzy__(query_variables)
@@ -338,12 +328,15 @@ class GraphQLAdapter:
         @param media_id: id of media corresponding to list entry to update
         @param changes: Object representing the changes to apply to the list entry
         @rtype: dict | None
-        @returns dict containing updated list entry info and None if the update could not be completed
+        @returns dict with updated entry info, or None if the update failed
         """
 
         data = await self.api.authenticated_call(
             *self.__changes_to_graphql__(update_entry, media_id, changes)
         )
+
+        if data is None:
+            return None
 
         data = data["data"]["SaveMediaListEntry"]
 
@@ -358,13 +351,13 @@ class GraphQLAdapter:
         for key in list(data.keys()):
             if type(data[key]) is dict:
                 data[key] = fuzzydate_to_date(data[key])
-            if data[key] == None:
+            if data[key] is None:
                 del data[key]
 
         return data
 
     @validate_call
-    async def get_trending_media(self, media_type: MediaType) -> List[MediaPreview]:
+    async def get_trending_media(self, media_type: MediaType) -> list[MediaPreview]:
         """
         Gets top 20 trending media
 
@@ -381,7 +374,7 @@ class GraphQLAdapter:
         return (await self.search(media_filters))[0]
 
     @validate_call
-    async def get_all_time_media(self, media_type: MediaType) -> List[MediaPreview]:
+    async def get_all_time_media(self, media_type: MediaType) -> list[MediaPreview]:
         """
         Gets top 50 all time media
 
@@ -398,7 +391,7 @@ class GraphQLAdapter:
         return (await self.search(media_filters))[0]
 
     @validate_call
-    async def get_seasonal_media(self, media_type: MediaType) -> List[MediaPreview]:
+    async def get_seasonal_media(self, media_type: MediaType) -> list[MediaPreview]:
         """
         Gets top 50 currently releasing media
 
@@ -416,7 +409,7 @@ class GraphQLAdapter:
         return (await self.search(media_filters))[0]
 
     @validate_call
-    async def get_upcoming_media(self, media_type: MediaType) -> List[MediaPreview]:
+    async def get_upcoming_media(self, media_type: MediaType) -> list[MediaPreview]:
         """
         Gets top 50 not yet released media
 
@@ -433,7 +426,7 @@ class GraphQLAdapter:
         return (await self.search(media_filters))[0]
 
     @validate_call
-    async def get_media_info(self, id: int) -> CompleteDocument:
+    async def get_media_info(self, id: int) -> CompleteDocument | None:
         """
         Function that gets detailed information on a media entry matching
         the id
@@ -450,6 +443,9 @@ class GraphQLAdapter:
         data = await self.api.get_data(
             *self.__filter_to_graphql__(get_expanded_media_info, media_filters)
         )
+
+        if data is None:
+            return None
 
         data = data["data"]["Media"]
 
@@ -476,8 +472,8 @@ class GraphQLAdapter:
         self,
         user_name: str,
         media_type: MediaType,
-        media_list_status: List[MediaListStatus],
-    ) -> List[Tuple]:
+        media_list_status: list[MediaListStatus],
+    ) -> list[tuple]:
         """
         Function that requests media lists based on function parameters
 
@@ -488,7 +484,7 @@ class GraphQLAdapter:
         @param media_type: anime or manga
         @param media_list_status: list of media statuses
         @rtype: List[Tuple]
-        @returns: List of tuples representing a media_list with info like length, status, etc.
+        @returns: list of tuples with media list info (length, status, etc.)
         """
 
         list_filters = MediaListFilter()
@@ -500,6 +496,9 @@ class GraphQLAdapter:
         data = await self.api.get_data(
             *self.__filter_to_graphql__(get_media_list, list_filters)
         )
+
+        if data is None:
+            return []
 
         data = data["data"]["MediaListCollection"]["lists"]
         results = []
@@ -522,7 +521,7 @@ class GraphQLAdapter:
                     media_list["name"],
                     media_list["status"],
                     len(entries),
-                    entry_objects.copy(),
+                    entry_objects,
                 )
             )
 
