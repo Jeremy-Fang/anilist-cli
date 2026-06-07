@@ -14,11 +14,14 @@ uv run pyright src/       # type check
 
 ## Architecture
 
-Three-layer design:
+Four-layer design:
 
-- **`AnilistClient`** — raw async HTTP client wrapping the AniList GraphQL API
-- **`GraphQLAdapter`** — translates between Python objects (filters, models) and GraphQL query strings/variables
+- **`AnilistClient`** (`libs/anilist/client.py`) — raw async HTTP client wrapping the AniList GraphQL API
+- **`AnilistAdapter`** (`libs/anilist/adapter.py`) — translates between Python objects (filters, models) and GraphQL queries/variables; parses raw API responses into model instances
+- **`AnilistService`** (`libs/anilist/service.py`) — business logic layer; owns preset queries (trending, seasonal, etc.) and delegates raw operations to `AnilistAdapter`. Screens interact with this layer only.
 - **Models** — Pydantic models organized in an inheritance hierarchy: `Media` + `ListEntry` → `CompleteDocument` → `Anime` / `Manga`; `MediaPreview` → `AnimePreview` / `MangaPreview`
+
+GraphQL queries live as static `.graphql` files under `libs/anilist/queries/` and are loaded at import time by `queries.py`. Variables are passed as a plain dict; Pydantic's `model_dump(by_alias=True)` handles the Python snake_case → GraphQL camelCase mapping via `Field(alias=...)` on each model field.
 
 ## Caching
 
@@ -43,10 +46,10 @@ Unit tests use manual mocks (inline Python dicts) rather than VCR/recorded casse
 src/anilist_cli/
 ├── main.py                   # creates RuntimeState, mounts the Textual App
 ├── models/
-│   └── cli_state.py          # to be deleted (see below)
+│   └── cli_state.py          # screen inventory — delete once all screens are implemented
 ├── ui/
 │   ├── app.py                # Textual App subclass
-│   ├── runtime_state.py      # owns AnilistClient, user session
+│   ├── runtime_state.py      # owns AnilistClient, AnilistAdapter, AnilistService, user session
 │   └── screens/              # one Screen subclass per view
 │       ├── login.py
 │       ├── main_menu.py
@@ -57,39 +60,31 @@ src/anilist_cli/
 └── libs/
 ```
 
-**Deferred refactors required before building screens:**
+**Remaining refactors before screens are complete:**
 
-- **Service layer refactor is blocking.** Screens should call `AnilistService` methods and receive pure data objects — the Active Record pattern (models calling the API directly) breaks down in a UI context where multiple screens may trigger updates. Do this before writing any screens.
-- **`CLIState` gets deleted.** Textual tracks the screen stack natively via `push_screen` / `pop_screen`. There is no separate state variable to maintain. Each `CLIState` value becomes a `Screen` subclass; `models/cli_state.py` is removed.
+- **`CLIState` gets deleted.** Textual tracks the screen stack natively via `push_screen` / `pop_screen`. Each `CLIState` value becomes a `Screen` subclass; `models/cli_state.py` is kept as a screen inventory reference until all screens are implemented, then removed.
 - **`RuntimeState` must own the `AnilistClient` instance and call `close()` on app exit.** Textual runs a single event loop for the entire app lifetime, so the `aiohttp.ClientSession` created inside `AnilistClient.__init__()` naturally lives as long as `RuntimeState` holds the reference — no session injection or parameter changes needed. The only reason to inject the session from outside would be for unit testability (passing a mock session), which is a separate concern.
 - **InquirerPy can be removed** once all screens are ported to Textual widgets. `prompt_with_pages` in `inquirer_util.py` becomes a Textual `ListView` or `Select` widget with custom keybindings.
 
 ## Open UML Design Questions (no decisions made yet)
 
 - **`CompleteDocument` and `MediaPreview` inheriting from `ListEntry`** — conflates media identity with user list interaction. A logged-out user has `Media` data but no `ListEntry` data; modeling this as inheritance means all `ListEntry` fields are `None` noise on the object for non-logged-in users. Composition may be more accurate: `CompleteDocument` extends only `Media` and carries `list_entry: ListEntry | None`. This also matches the AniList API response shape (media with an optional nested `mediaListEntry`). No decision made.
-- **`MediaListEntry` not inheriting from `Media`** — every other concrete class with media data (`Anime`, `Manga`, `MediaPreview`, `AnimePreview`, `MangaPreview`) inherits from `Media`. `MediaListEntry` defines `id` and `title` directly instead, which is structurally inconsistent and is the root of the known `media_id` bug. No decision made.
+- **`MediaListEntry` not inheriting from `Media`** — every other concrete class with media data (`Anime`, `Manga`, `MediaPreview`, `AnimePreview`, `MangaPreview`) inherits from `Media`. `MediaListEntry` defines `id`, `media_id`, and `title` directly instead, which is structurally inconsistent. (`media_id` was fixed by adding `Field(alias="mediaId")` directly, but the inheritance inconsistency remains.) No decision made.
 - **`AnimePreview` / `MangaPreview` as empty subclasses** — neither adds fields or methods over `MediaPreview`. The only value is distinct types for isinstance checks. Consider whether a single `MediaPreview` with a `media_type` field would be simpler, or whether anime/manga-specific preview fields are planned. No decision made.
 - **`notes` vs `note` naming** — `ListEntry` has `notes` (plural), `ListEntryChanges` has `note` (singular). These represent the same concept and should be consistent. No decision made.
-- **`adapter: Any` typing on `ListEntry`** — the most critical dependency in the model layer bypasses all type checking. Should be typed against a Protocol after the `AnilistClient` / `AnilistService` refactor. No decision made.
-- **`ListEntry → AnilistClient` connection in UML** — should be removed from the diagram once the service layer refactor is done, since models will no longer hold an API reference.
+- **`adapter: Any` typing on `ListEntry`** — the most critical dependency in the model layer bypasses all type checking. Should be typed against a Protocol after the Active Record pattern is removed. No decision made.
 
 ## Known Gotchas
 
-- `RuntimeState` (not yet implemented) must NOT declare `session_cache` as a direct attribute — access it via `anilist_session.cache` instead. The UML diagram shows both, but the direct attribute is redundant and risks two paths to the same object being used inconsistently
-- `ListEntry` currently holds `api: AnilistClient` so models can call `update_media_entry()` on themselves (Active Record pattern). This creates a circular dependency and couples models to the network layer. Deferred refactor: move `update_media_entry()` and `add_change()` to `GraphQLAdapter` (Service Layer pattern) and make models pure data. This is the industry-standard approach for API clients and CLI tools, and fits the existing three-layer architecture naturally. As part of this refactor, rename `GraphQLAdapter` → `AnilistService` — "Adapter" undersells the service layer responsibility and "GraphQL" exposes an implementation detail the caller shouldn't know about. (`AnilistAPI` has already been renamed to `AnilistClient`.) The resulting hierarchy reads cleanly: `AnilistClient` (raw HTTP) → `AnilistService` (business logic) → Models (pure data)
+- `RuntimeState` (not yet implemented) must NOT declare `session_cache` as a direct attribute — access it via `anilist_session.cache` instead. The UML diagram shows both, but the direct attribute is redundant and risks two paths to the same object being used inconsistently.
 
-- `basic_type_map` in `graphql_adapter.py` maps Python `__name__` strings to GraphQL scalar names (`"str"` → `"String"`, etc.) and is used by `__create_var_type_map__` to infer variable types at runtime from the actual values passed in. This is a workaround — it infers types from runtime values rather than reading declared schema types, so it can't distinguish `Int` from `ID`, doesn't cover nullable vs non-nullable, and crashes with `KeyError` on any type not in the map. The "correct" fix without `.graphql` files would be to declare GraphQL types on the Pydantic model fields directly (e.g., `json_schema_extra={"graphql_type": "Int"}`) so the mapping is schema-driven. With `.graphql` files, the entire problem disappears — variable types are declared in the query file, and `basic_type_map` along with `__create_var_type_map__` and the rest of the format string machinery can be deleted.
+- `ListEntry` currently holds `adapter: AnilistAdapter` so models can call `update_list_entry()` on themselves (Active Record pattern). This creates a circular dependency and couples models to the network layer. Deferred refactor: move `update_list_entry()` and `add_changes()` to `AnilistService` and make models pure data. The resulting hierarchy reads cleanly: `AnilistClient` (raw HTTP) → `AnilistAdapter` (parsing) → `AnilistService` (business logic) → Models (pure data).
 
-- `queries.py` stores GraphQL queries as Python format strings with `{variables}`, `{page_query}`, `{media_query}` placeholders — these are not valid GraphQL and cannot be validated by tooling. Deferred refactor: migrate to `.graphql` files (one file per query, real GraphQL syntax, no `{{}}` escaping). This forces static queries — all variables declared upfront, unused ones passed as `null` — which AniList handles gracefully. The payoff is that `__create_var_type_map__`, `__format_query__`, and the entire format string injection machinery in `GraphQLAdapter` can be deleted; the adapter just passes the variables dict directly. Setup requires a `queries/` subdirectory, loading files via `Path(__file__).parent / name).read_text()`, and adding `"**/*.graphql"` to `[tool.setuptools.package-data]` in `pyproject.toml`. Optionally pair with the GraphQL VSCode extension and a downloaded AniList schema for inline validation and field autocompletion.
-
-- Private helper methods in `graphql_adapter.py` currently use `__dunder__` naming (e.g. `__create_var_type_map__`, `__format_query__`) — these should be migrated to `_single_underscore` convention
-- `MediaListEntry.update_list_entry` calls `self.media_id` but `MediaListEntry` only inherits from `ListEntry`, not `Media`, so the field doesn't exist — needs either `media_id: int = Field(alias="mediaId")` added directly to `MediaListEntry`, or a decision to make it extend `Media` too
-- Several deferred DRY/maintainability cleanups remain in `graphql_adapter.py` — low priority until after the `.graphql` migration since most of the affected code is deleted by that refactor anyway:
+- Several deferred DRY/maintainability cleanups remain in `adapter.py` — low priority since they don't affect correctness:
   - `search` iterates `data` twice (transform then construct) — merge into one loop
   - `__dict_enums_to_strs__` builds a list with a `for` loop + `.copy()` — replace with a list comprehension
   - `update_list_entry` repeats a rename-then-delete key pattern three times — collapse with `data.pop()`
-  - `__filter_to_graphql__` merges page variables with a manual loop — replace with `query_variables.update(page_variables)`
-  - `get_trending/all_time/seasonal/upcoming_media` share identical structure — could extract a private `_search_preset` helper, though explicitness has value for public methods
-  - `__clean_query__` sorts property lists with `reverse=True` for no apparent reason — the order of these replacements is irrelevant since none are substrings of each other; the sort is misleading
   - `update_list_entry` uses `type(data[key]) is dict` — should be `isinstance` for consistency and subclass correctness
   - Explicit `return None` at the end of `__dict_enums_to_strs__`, `__dict_dates_to_fuzzy__`, `__parse_media_list_entry__` — redundant, Python returns `None` implicitly
+
+- **Future migration: `ariadne-codegen`** — generates fully-typed Python client code from `.graphql` files and the AniList schema. Would replace `AnilistAdapter`'s hand-written parsing, `model_dump(by_alias=True)` variable mapping, and the `Field(alias=...)` workarounds. Worth tracking once the feature set stabilises.

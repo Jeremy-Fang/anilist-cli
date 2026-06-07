@@ -36,7 +36,7 @@ class AnilistAdapter:
         """
         self.api = api
 
-    def __dict_enums_to_strs__(self, d: dict) -> None:
+    def _dict_enums_to_strs(self, d: dict) -> None:
         """
         Helper function that converts enum values in a dictionary into
         strings
@@ -57,7 +57,7 @@ class AnilistAdapter:
 
         return None
 
-    def __dict_dates_to_fuzzy__(self, d: dict) -> None:
+    def _dict_dates_to_fuzzy(self, d: dict) -> None:
         """
         Helper function that converts datetime.date values in a
         dictionary into fuzzy date objects
@@ -69,7 +69,7 @@ class AnilistAdapter:
 
         return None
 
-    def __parse_media_list_entry__(self, d: dict) -> None:
+    def _parse_media_list_entry(self, d: dict) -> None:
         """
         Helper function that flattens a media list entry in a dictionary
         """
@@ -89,7 +89,7 @@ class AnilistAdapter:
 
         return None
 
-    def __filter_to_graphql__(
+    def _filter_to_graphql(
         self,
         query: str,
         filter: MediaFilter | MediaListFilter,
@@ -115,8 +115,8 @@ class AnilistAdapter:
             key: value for (key, value) in variables.items() if value is not None
         }
 
-        self.__dict_enums_to_strs__(query_variables)
-        self.__dict_dates_to_fuzzy__(query_variables)
+        self._dict_enums_to_strs(query_variables)
+        self._dict_dates_to_fuzzy(query_variables)
 
         if page_filter:
             query_variables.update(page_variables)
@@ -142,7 +142,7 @@ class AnilistAdapter:
         """
 
         data = await self.api.get_data(
-            *self.__filter_to_graphql__(get_media, filters, page_filter)
+            *self._filter_to_graphql(get_media, filters, page_filter)
         )
 
         if data is None:
@@ -156,7 +156,7 @@ class AnilistAdapter:
             entry["adapter"] = self
             entry["title"] = MediaTitle(**entry["title"])
 
-            self.__parse_media_list_entry__(entry)
+            self._parse_media_list_entry(entry)
 
         results = []
 
@@ -168,7 +168,7 @@ class AnilistAdapter:
 
         return (results, results_info)
 
-    def __changes_to_graphql__(
+    def _changes_to_graphql(
         self, query: str, media_id: int, changes: ListEntryChanges
     ) -> tuple:
         """
@@ -191,8 +191,8 @@ class AnilistAdapter:
 
         query_variables["mediaId"] = media_id
 
-        self.__dict_enums_to_strs__(query_variables)
-        self.__dict_dates_to_fuzzy__(query_variables)
+        self._dict_enums_to_strs(query_variables)
+        self._dict_dates_to_fuzzy(query_variables)
 
         return (query, query_variables)
 
@@ -214,7 +214,7 @@ class AnilistAdapter:
         """
 
         data = await self.api.authenticated_call(
-            *self.__changes_to_graphql__(update_entry, media_id, changes)
+            *self._changes_to_graphql(update_entry, media_id, changes)
         )
 
         if data is None:
@@ -254,7 +254,7 @@ class AnilistAdapter:
         media_filters["media_id"] = id
 
         data = await self.api.get_data(
-            *self.__filter_to_graphql__(get_expanded_media_info, media_filters)
+            *self._filter_to_graphql(get_expanded_media_info, media_filters)
         )
 
         if data is None:
@@ -273,7 +273,7 @@ class AnilistAdapter:
         for i, genre in enumerate(data["genres"]):
             data["genres"][i] = "_".join(genre.upper().replace("-", " ").split())
 
-        self.__parse_media_list_entry__(data)
+        self._parse_media_list_entry(data)
 
         if data["type"] == "ANIME":
             return Anime(**data)
@@ -307,7 +307,7 @@ class AnilistAdapter:
         list_filters["status_in"] = media_list_status
 
         data = await self.api.get_data(
-            *self.__filter_to_graphql__(get_media_list, list_filters)
+            *self._filter_to_graphql(get_media_list, list_filters)
         )
 
         if data is None:
