@@ -51,6 +51,8 @@ class GraphQLAdapter:
                 continue
             for key in d.keys():
                 if type(d[key]) is list:
+                    if not d[key]:
+                        continue
                     if issubclass(type(d[key][0]), Enum):
                         res[key] = "[" + type(d[key][0]).__name__ + "]"
                     else:
@@ -73,6 +75,8 @@ class GraphQLAdapter:
 
         for key in d.keys():
             if type(d[key]) is list:
+                if not d[key]:
+                    continue
                 if issubclass(type(d[key][0]), Enum):
                     val = []
                     for entry in d[key]:
@@ -121,7 +125,7 @@ class GraphQLAdapter:
         query: str,
         media_type: MediaType = MediaType.ANIME,
         logged_in: bool = False,
-    ):
+    ) -> str:
         """
         Helper function that removes properties from the base query that are guarenteed
         to be empty
@@ -147,24 +151,15 @@ class GraphQLAdapter:
 
         return res
 
-    def __format_query__(self, query: str, format_strings: dict):
+    def __format_query__(self, query: str, format_strings: dict) -> str:
         """
         Function which replaces variables in a format string with matching values
         in the format_strings dict
         """
 
         format_placeholders = [s[2:-2] for s in re.findall(r"\(\{.*\}\)", query)]
-
-        # remove format strings which are not one of the placeholders
-        for key in list(format_strings.keys()):
-            if key not in format_placeholders:
-                del format_strings[key]
-
-        for item in format_placeholders:
-            if item not in format_strings:
-                format_strings[item] = ""
-
-        return query.format(**format_strings)
+        resolved = {p: format_strings.get(p, "") for p in format_placeholders}
+        return query.format(**resolved)
 
     @validate_call
     def __filter_to_graphql__(
@@ -195,7 +190,9 @@ class GraphQLAdapter:
         variables = filter.model_dump(by_alias=True)
         page_variables = page_filter.model_dump(by_alias=True) if page_filter else {}
 
-        query_variables = {key: value for (key, value) in variables.items() if value}
+        query_variables = {
+            key: value for (key, value) in variables.items() if value is not None
+        }
 
         variable_types = self.__create_var_type_map__([page_variables, query_variables])
 
@@ -259,7 +256,7 @@ class GraphQLAdapter:
         data = data["data"]["Page"]["media"]
 
         # cleans data
-        for i, entry in enumerate(data):
+        for entry in data:
             entry["adapter"] = self
             entry["title"] = MediaTitle(**entry["title"])
 
@@ -293,7 +290,9 @@ class GraphQLAdapter:
         """
 
         variables = changes.model_dump(by_alias=True)
-        query_variables = {key: value for (key, value) in variables.items() if value}
+        query_variables = {
+            key: value for (key, value) in variables.items() if value is not None
+        }
 
         query_variables["mediaId"] = media_id
 
@@ -427,7 +426,7 @@ class GraphQLAdapter:
         return (await self.search(media_filters))[0]
 
     @validate_call
-    async def get_media_info(self, id: int) -> CompleteDocument:
+    async def get_media_info(self, id: int) -> CompleteDocument | None:
         """
         Function that gets detailed information on a media entry matching
         the id
@@ -444,6 +443,9 @@ class GraphQLAdapter:
         data = await self.api.get_data(
             *self.__filter_to_graphql__(get_expanded_media_info, media_filters)
         )
+
+        if data is None:
+            return None
 
         data = data["data"]["Media"]
 
@@ -519,7 +521,7 @@ class GraphQLAdapter:
                     media_list["name"],
                     media_list["status"],
                     len(entries),
-                    entry_objects.copy(),
+                    entry_objects,
                 )
             )
 

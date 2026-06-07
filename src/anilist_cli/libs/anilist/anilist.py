@@ -127,7 +127,9 @@ class AnilistClient:
         @returns: parsed response JSON, or None if the request failed
         """
         async with self._session.post(
-            ANILIST_URL, json=payload, headers=headers if headers is not None else self.headers
+            ANILIST_URL,
+            json=payload,
+            headers=headers if headers is not None else self.headers,
         ) as response:
             if response.status != 200:
                 logger.warning(
